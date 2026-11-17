@@ -10,7 +10,7 @@ import {
   FiAward
 } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1/lucky-spin'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/lucky-spin'
 
 const rewards = [
   { label: '5% OFF', color: '#d6ad50' },
