@@ -1,9 +1,13 @@
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { GoogleLogin } from '@react-oauth/google'
-import { motion, AnimatePresence } from 'framer-motion'
+import {
+  motion,
+  AnimatePresence,
+  useAnimationControls,
+} from 'framer-motion'
 import {
   FiMail,
   FiLock,
@@ -50,13 +54,93 @@ const floatingIcons = [
   { Icon: FiZap, x: 0, y: 115, delay: 0.75 },
 ]
 
+/* =========================================
+   LOGIN CHARACTER ANIMATION
+========================================= */
+
 const LoginCharacter = () => {
   const [cardInserted, setCardInserted] = useState(false)
+  const cardControls = useAnimationControls()
+
+  useEffect(() => {
+    let active = true
+
+    const wait = (ms) =>
+      new Promise((resolve) => setTimeout(resolve, ms))
+
+    const playAnimation = async () => {
+      while (active) {
+        try {
+          // Card starting position
+          setCardInserted(false)
+
+          cardControls.set({
+            y: 0,
+            rotate: -12,
+            scale: 1,
+            opacity: 1,
+          })
+
+          await wait(700)
+
+          if (!active) break
+
+          // Card enters the login slot
+          await cardControls.start({
+            y: -140,
+            rotate: 0,
+            scale: 0.55,
+            opacity: 0,
+            transition: {
+              duration: 1.3,
+              ease: 'easeInOut',
+            },
+          })
+
+          if (!active) break
+
+          // Welcome animation starts
+          setCardInserted(true)
+
+          await wait(2500)
+
+          if (!active) break
+
+          // Reset animation
+          setCardInserted(false)
+
+          await cardControls.start({
+            y: 0,
+            rotate: -12,
+            scale: 1,
+            opacity: 1,
+            transition: {
+              duration: 0.9,
+              ease: 'easeInOut',
+            },
+          })
+
+          await wait(600)
+        } catch (error) {
+          if (active) {
+            console.error('Login animation error:', error)
+          }
+          break
+        }
+      }
+    }
+
+    playAnimation()
+
+    return () => {
+      active = false
+    }
+  }, [cardControls])
 
   return (
     <div className="relative mx-auto flex w-full max-w-[440px] flex-col items-center">
 
-      {/* Animation Area */}
+      {/* ANIMATION AREA */}
 
       <div className="relative flex h-[340px] w-full items-center justify-center sm:h-[390px]">
 
@@ -64,49 +148,65 @@ const LoginCharacter = () => {
 
         <motion.div
           animate={{
-            scale: [1, 1.15, 1],
-            opacity: [0.15, 0.3, 0.15],
+            scale: [1, 1.18, 1],
+            opacity: [0.12, 0.28, 0.12],
           }}
-          transition={{ duration: 4, repeat: Infinity }}
+          transition={{
+            duration: 4,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
           className="absolute h-64 w-64 rounded-full bg-amber-500 blur-[75px] sm:h-80 sm:w-80"
         />
 
-        {/* Slot */}
+        {/* Login Slot */}
 
-        <div className="absolute right-3 top-10 z-10 flex flex-col items-center sm:right-8 sm:top-12">
+        <div className="absolute left-1/2 top-3 z-20 flex -translate-x-1/2 flex-col items-center sm:top-5">
 
-          <div className="relative flex h-24 w-32 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl sm:h-28 sm:w-36">
+          <motion.div
+            animate={{
+              boxShadow: [
+                '0 0 10px rgba(245,158,11,0.1)',
+                '0 0 30px rgba(245,158,11,0.45)',
+                '0 0 10px rgba(245,158,11,0.1)',
+              ],
+            }}
+            transition={{ duration: 2, repeat: Infinity }}
+            className="relative flex h-24 w-36 items-center justify-center rounded-2xl border border-white/20 bg-white/10 shadow-2xl backdrop-blur-xl sm:h-28 sm:w-40"
+          >
 
             <div className="absolute inset-x-5 top-4 h-2 rounded-full bg-white/10" />
 
-            <motion.div
-              animate={{
-                boxShadow: [
-                  '0 0 0px rgba(245,158,11,0)',
-                  '0 0 25px rgba(245,158,11,0.8)',
-                  '0 0 0px rgba(245,158,11,0)',
-                ],
-              }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="flex h-9 w-20 items-center justify-center rounded-lg border-2 border-amber-500 bg-black sm:w-24"
-            >
-              <div className="h-1.5 w-12 rounded-full bg-amber-500" />
-            </motion.div>
+            <div className="flex h-10 w-24 items-center justify-center rounded-lg border-2 border-amber-500 bg-black">
+              <div className="h-1.5 w-14 rounded-full bg-amber-500" />
+            </div>
 
-            <div className="absolute -bottom-2 h-3 w-20 rounded-full bg-amber-500/20 blur-md" />
-          </div>
+            <motion.div
+              animate={{ opacity: [0.2, 0.8, 0.2] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="absolute -bottom-2 h-3 w-24 rounded-full bg-amber-500/30 blur-md"
+            />
+
+          </motion.div>
 
           <p className="mt-3 text-[9px] font-bold tracking-[0.25em] text-amber-400">
             LOGIN SLOT
           </p>
+
         </div>
 
         {/* Character */}
 
         <motion.div
-          animate={{ y: [0, -7, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
-          className="absolute bottom-3 left-1/2 z-20 h-[235px] w-[185px] -translate-x-1/2 sm:bottom-2 sm:h-[260px] sm:w-[210px]"
+          animate={{
+            y: [0, -7, 0],
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+          className="absolute bottom-0 left-1/2 z-20 h-[235px] w-[185px] -translate-x-1/2 sm:h-[260px] sm:w-[210px]"
         >
 
           {/* Head */}
@@ -117,12 +217,17 @@ const LoginCharacter = () => {
 
             <div className="absolute -top-3 left-1/2 h-9 w-[88px] -translate-x-1/2 rounded-t-[35px] bg-[#26201c] sm:w-[98px]" />
 
+            {/* Eyes */}
+
             <div className="absolute left-4 top-9 flex gap-5">
               <span className="h-2 w-2 rounded-full bg-[#25201c]" />
               <span className="h-2 w-2 rounded-full bg-[#25201c]" />
             </div>
 
+            {/* Smile */}
+
             <div className="absolute bottom-5 left-1/2 h-2 w-5 -translate-x-1/2 rounded-full border-b-2 border-[#a45e48]" />
+
           </div>
 
           {/* Body */}
@@ -139,8 +244,10 @@ const LoginCharacter = () => {
             {/* Left Arm */}
 
             <motion.div
-              animate={{ rotate: [-12, 0, -12] }}
-              transition={{ duration: 2.5, repeat: Infinity }}
+              animate={{
+                rotate: cardInserted ? -20 : -35,
+              }}
+              transition={{ duration: 0.5 }}
               className="absolute -left-8 top-8 h-16 w-12 origin-top rounded-full border-2 border-[#d9a16e] bg-[#f0bd91]"
             />
 
@@ -148,44 +255,36 @@ const LoginCharacter = () => {
 
             <motion.div
               animate={{
-                rotate: cardInserted ? [0, -15, 0] : [-20, -40, -20],
+                rotate: cardInserted ? -25 : -45,
               }}
-              transition={{
-                duration: 2.5,
-                repeat: Infinity,
-              }}
+              transition={{ duration: 0.5 }}
               className="absolute -right-7 top-5 h-16 w-12 origin-top rounded-full border-2 border-[#d9a16e] bg-[#f0bd91]"
             />
+
           </div>
 
           {/* Legs */}
 
           <div className="absolute -bottom-2 left-[35px] h-8 w-12 rounded-b-xl bg-[#252525] sm:left-[40px]" />
+
           <div className="absolute -bottom-2 right-[35px] h-8 w-12 rounded-b-xl bg-[#252525] sm:right-[40px]" />
+
         </motion.div>
 
-        {/* Login Card */}
+        {/* LOGIN CARD */}
 
         <motion.div
-          initial={{ x: -110, y: 100, rotate: -15, opacity: 0 }}
-          animate={{
-            x: cardInserted ? 65 : -35,
-            y: cardInserted ? -112 : 15,
-            rotate: cardInserted ? 0 : -12,
+          initial={{
+            y: 0,
+            rotate: -12,
+            scale: 1,
             opacity: 1,
-            scale: cardInserted ? 0.5 : 1,
           }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            repeatDelay: 2.2,
-            ease: 'easeInOut',
-          }}
-          onAnimationComplete={() => setCardInserted(true)}
-          onAnimationStart={() => setCardInserted(false)}
-          className="absolute left-2 top-[115px] z-30 flex h-[100px] w-[135px] flex-col items-center justify-center rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-400 to-amber-600 shadow-[0_15px_40px_rgba(245,158,11,0.35)] sm:left-5 sm:top-[130px] sm:h-[115px] sm:w-[155px]"
+          animate={cardControls}
+          className="absolute left-1/2 top-[155px] z-30 flex h-[100px] w-[135px] -translate-x-1/2 flex-col items-center justify-center rounded-2xl border border-amber-300/50 bg-gradient-to-br from-amber-400 to-amber-600 shadow-[0_15px_40px_rgba(245,158,11,0.4)] sm:top-[170px] sm:h-[115px] sm:w-[155px]"
         >
-          <FiLock size={24} className="mb-2 text-black" />
+
+          <FiLock size={25} className="mb-2 text-black" />
 
           <span className="text-lg font-black tracking-widest text-black">
             LOGIN
@@ -194,9 +293,10 @@ const LoginCharacter = () => {
           <span className="mt-1 text-[8px] font-bold tracking-[0.2em] text-black/70">
             MOBILESPOT
           </span>
+
         </motion.div>
 
-        {/* Success Icons */}
+        {/* SUCCESS ICONS */}
 
         <AnimatePresence>
           {cardInserted && (
@@ -204,16 +304,24 @@ const LoginCharacter = () => {
               {floatingIcons.map(({ Icon, x, y, delay }, index) => (
                 <motion.div
                   key={index}
-                  initial={{ opacity: 0, scale: 0, x: 0, y: 0 }}
+                  initial={{
+                    opacity: 0,
+                    scale: 0,
+                    x: 0,
+                    y: 0,
+                  }}
                   animate={{
                     opacity: [0, 1, 1, 0],
                     scale: [0, 1.2, 1, 0.7],
                     x,
                     y,
                   }}
-                  exit={{ opacity: 0 }}
+                  exit={{
+                    opacity: 0,
+                    scale: 0,
+                  }}
                   transition={{
-                    duration: 2.3,
+                    duration: 2.2,
                     delay,
                     ease: 'easeOut',
                   }}
@@ -225,18 +333,20 @@ const LoginCharacter = () => {
             </>
           )}
         </AnimatePresence>
+
       </div>
 
-      {/* Welcome Message */}
+      {/* WELCOME MESSAGE */}
 
       <motion.div
         animate={{
-          opacity: cardInserted ? 1 : 0.65,
+          opacity: cardInserted ? 1 : 0.7,
           y: cardInserted ? 0 : 8,
         }}
         transition={{ duration: 0.5 }}
         className="relative z-40 mt-1 text-center"
       >
+
         <motion.div
           animate={{
             scale: cardInserted ? [1, 1.08, 1] : 1,
@@ -245,24 +355,43 @@ const LoginCharacter = () => {
           className="mb-3 inline-flex items-center gap-2 rounded-full border border-amber-400/30 bg-amber-500/10 px-4 py-2"
         >
           <FiCheck className="text-amber-400" size={14} />
+
           <span className="text-[10px] font-bold tracking-[0.2em] text-amber-300">
             {cardInserted ? 'ACCESS GRANTED' : 'WELCOME TO MOBILESPOT'}
           </span>
+
         </motion.div>
 
-        <h2 className="text-2xl font-extrabold text-white sm:text-3xl">
-          {cardInserted ? 'Welcome Back!' : 'Your Tech Journey'}
-        </h2>
+        <AnimatePresence mode="wait">
+
+          <motion.h2
+            key={cardInserted ? 'welcome' : 'journey'}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.4 }}
+            className="text-2xl font-extrabold text-white sm:text-3xl"
+          >
+            {cardInserted ? 'Welcome Back!' : 'Your Tech Journey'}
+          </motion.h2>
+
+        </AnimatePresence>
 
         <p className="mx-auto mt-2 max-w-xs text-xs leading-6 text-gray-400 sm:text-sm">
           {cardInserted
             ? 'Your premium shopping experience is waiting for you.'
             : 'Premium smartphones, exclusive deals and more.'}
         </p>
+
       </motion.div>
+
     </div>
   )
 }
+
+/* =========================================
+   LOGIN PAGE
+========================================= */
 
 const Login = () => {
   const navigate = useNavigate()
@@ -300,6 +429,8 @@ const Login = () => {
     }, 1200)
   }
 
+  /* NORMAL LOGIN */
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -331,6 +462,8 @@ const Login = () => {
       setLoading(false)
     }
   }
+
+  /* GOOGLE LOGIN */
 
   const handleGoogleLogin = async (credentialResponse) => {
     setError('')
@@ -372,9 +505,10 @@ const Login = () => {
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#f7f6f3] font-[Arial]">
 
-      {/* Background */}
+      {/* BACKGROUND */}
 
       <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-amber-100/50 blur-3xl" />
+
       <div className="pointer-events-none absolute -bottom-40 right-0 h-96 w-96 rounded-full bg-orange-100/50 blur-3xl" />
 
       <div className="relative mx-auto flex min-h-screen max-w-[1500px] items-center justify-center p-3 sm:p-6 lg:p-8">
@@ -401,7 +535,10 @@ const Login = () => {
             />
 
             <motion.div
-              animate={{ scale: [1, 1.3, 1], x: [0, -20, 0] }}
+              animate={{
+                scale: [1, 1.3, 1],
+                x: [0, -20, 0],
+              }}
               transition={{ duration: 8, repeat: Infinity }}
               className="absolute -bottom-20 -left-20 h-96 w-96 rounded-full bg-orange-600/20 blur-[100px]"
             />
@@ -414,24 +551,25 @@ const Login = () => {
               }}
             />
 
-            {/* Brand */}
+            {/* BRAND */}
 
             <Link to="/" className="relative z-10 inline-block w-fit">
               <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
                 MOBILE<span className="text-amber-500">SPOT</span>
               </h2>
+
               <p className="mt-1 text-[9px] tracking-[0.3em] text-gray-400 sm:text-xs">
                 PREMIUM MOBILE STORE
               </p>
             </Link>
 
-            {/* Character Animation */}
+            {/* CHARACTER */}
 
             <div className="relative z-10 flex flex-1 flex-col items-center justify-center py-5">
               <LoginCharacter />
             </div>
 
-            {/* Features */}
+            {/* FEATURES */}
 
             <div className="relative z-10 grid grid-cols-3 gap-2 border-t border-white/10 pt-5 sm:gap-3 sm:pt-7">
 
@@ -470,7 +608,7 @@ const Login = () => {
               className="mx-auto w-full max-w-md"
             >
 
-              {/* Mobile Brand */}
+              {/* MOBILE BRAND */}
 
               <motion.div
                 variants={itemVariants}
@@ -485,7 +623,7 @@ const Login = () => {
                 </p>
               </motion.div>
 
-              {/* Heading */}
+              {/* HEADING */}
 
               <motion.div variants={itemVariants} className="mb-7 sm:mb-8">
 
@@ -510,7 +648,7 @@ const Login = () => {
 
               </motion.div>
 
-              {/* Error */}
+              {/* ERROR */}
 
               <AnimatePresence mode="wait">
                 {error && (
@@ -526,7 +664,7 @@ const Login = () => {
                 )}
               </AnimatePresence>
 
-              {/* Success */}
+              {/* SUCCESS */}
 
               <AnimatePresence>
                 {success && (
@@ -543,12 +681,13 @@ const Login = () => {
                     >
                       <FiCheck size={22} />
                     </motion.div>
+
                     {success}
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Login Form */}
+              {/* LOGIN FORM */}
 
               <motion.form
                 variants={itemVariants}
@@ -556,7 +695,7 @@ const Login = () => {
                 className="space-y-4 sm:space-y-5"
               >
 
-                {/* Email */}
+                {/* EMAIL */}
 
                 <div>
                   <label className="mb-2 block text-xs font-bold text-gray-700 sm:text-sm">
@@ -588,7 +727,7 @@ const Login = () => {
                   </div>
                 </div>
 
-                {/* Password */}
+                {/* PASSWORD */}
 
                 <div>
                   <label className="mb-2 block text-xs font-bold text-gray-700 sm:text-sm">
@@ -633,7 +772,7 @@ const Login = () => {
                   </div>
                 </div>
 
-                {/* Remember / Forgot */}
+                {/* REMEMBER / FORGOT */}
 
                 <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm">
 
@@ -654,7 +793,7 @@ const Login = () => {
 
                 </div>
 
-                {/* Submit */}
+                {/* SUBMIT BUTTON */}
 
                 <motion.button
                   type="submit"
@@ -691,7 +830,7 @@ const Login = () => {
 
               </motion.form>
 
-              {/* Divider */}
+              {/* DIVIDER */}
 
               <motion.div
                 variants={itemVariants}
@@ -706,7 +845,7 @@ const Login = () => {
                 <div className="h-px flex-1 bg-gray-200" />
               </motion.div>
 
-              {/* Google Login */}
+              {/* GOOGLE LOGIN */}
 
               <motion.div
                 variants={itemVariants}
@@ -744,13 +883,14 @@ const Login = () => {
                       }}
                       className="h-4 w-4 rounded-full border-2 border-gray-300 border-t-amber-600"
                     />
+
                     Signing in with Google...
                   </div>
                 )}
 
               </motion.div>
 
-              {/* Signup */}
+              {/* SIGNUP */}
 
               <motion.p
                 variants={itemVariants}
@@ -766,7 +906,7 @@ const Login = () => {
                 </Link>
               </motion.p>
 
-              {/* Back Home */}
+              {/* BACK HOME */}
 
               <motion.div
                 variants={itemVariants}
@@ -781,7 +921,7 @@ const Login = () => {
                 </Link>
               </motion.div>
 
-              {/* Security */}
+              {/* SECURITY */}
 
               <motion.div
                 variants={itemVariants}

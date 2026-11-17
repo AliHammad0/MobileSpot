@@ -1,5 +1,5 @@
 
-const API_URL = 'http://localhost:8080/api/v1/order'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/order'
 
 const apiRequest = async (url, options = {}) => {
   const token = localStorage.getItem('token')

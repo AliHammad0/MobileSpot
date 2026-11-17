@@ -1,5 +1,5 @@
 
-const API_URL = 'http://localhost:8080/api/v1/products'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
 
 // Common API Request
 const apiRequest = async (url, options = {}) => {

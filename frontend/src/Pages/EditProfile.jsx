@@ -9,7 +9,7 @@ import {
   FiArrowLeft,
 } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1/users/me'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/users/me'
 
 const EditProfile = () => {
   const navigate = useNavigate()

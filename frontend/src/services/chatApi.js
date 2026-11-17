@@ -2,7 +2,7 @@
 import { io } from 'socket.io-client'
 
 const API_URL =
-  import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1'
+  import.meta.env.VITE_API_URL || 'https://mobilespot-backend.vercel.app/api/v1'
 
 const SOCKET_URL = API_URL.replace(/\/api\/v1\/?$/, '')
 

@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:8080/api/v1/coupon'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/coupon'
 
 // Validate Coupon
 export const validateCoupon = async (code, subtotal) => {
