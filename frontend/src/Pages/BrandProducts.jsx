@@ -254,7 +254,7 @@ const BrandAnnouncer = ({ brand }) => {
                     duration: 0.45,
                     type: 'spring',
                   }}
-                  className="absolute -right-24 -top-3 z-20 w-36 rounded-xl border border-gray-100 bg-white px-3 py-2 text-center shadow-lg sm:-right-28 sm:w-44"
+                 className="absolute -right-24 -top-3 z-[100] w-36 rounded-xl border border-gray-100 bg-white px-3 py-2 text-center shadow-xl sm:-right-28 sm:w-44"
                 >
                   <p className="text-[10px] font-bold leading-relaxed text-gray-800 sm:text-xs">
                     Hey! Welcome to
@@ -886,3 +886,5 @@ const BrandProducts = () => {
 }
 
 export default BrandProducts
+
+
