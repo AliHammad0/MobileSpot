@@ -20,13 +20,13 @@ const Profile = () => {
 
   const [user, setUser] = useState(null)
   const [orders, setOrders] = useState([])
+  const [imageError, setImageError] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [ordersLoading, setOrdersLoading] = useState(true)
   const [error, setError] = useState('')
   const [ordersError, setOrdersError] = useState('')
 
-  // Fetch Profile and Real Orders
   useEffect(() => {
     const fetchProfileData = async () => {
       const token = localStorage.getItem('token')
@@ -40,7 +40,6 @@ const Profile = () => {
         setLoading(true)
         setOrdersLoading(true)
 
-        // Fetch User Profile
         const profileResponse = await fetch(`${API_URL}/users/me`, {
           headers: {
             Authorization: `Bearer ${token}`
@@ -50,15 +49,29 @@ const Profile = () => {
         const profileData = await profileResponse.json()
 
         if (!profileResponse.ok || !profileData.ok) {
-          throw new Error(profileData.message || 'Unable to load profile')
+          if (
+            profileResponse.status === 401 ||
+            profileResponse.status === 403
+          ) {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+            navigate('/login')
+            return
+          }
+
+          throw new Error(
+            profileData.message || 'Unable to load profile'
+          )
         }
 
         const userData = profileData.user
 
         setUser(userData)
+        setImageError(false)
+
         localStorage.setItem('user', JSON.stringify(userData))
 
-        // Fetch Logged-in User Orders
+        // Fetch User Orders
         try {
           const ordersResponse = await fetch(
             `${API_URL}/order/my-orders`,
@@ -87,6 +100,7 @@ const Profile = () => {
         } catch (orderError) {
           setOrdersError(orderError.message)
         }
+
       } catch (err) {
         setError(err.message)
       } finally {
@@ -98,11 +112,17 @@ const Profile = () => {
     fetchProfileData()
   }, [navigate])
 
+  // Profile image
+  const profileImage =
+    user?.profileImage ||
+    user?.avatar ||
+    user?.image ||
+    ''
+
   // Logout
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
-
     navigate('/login')
   }
 
@@ -122,30 +142,30 @@ const Profile = () => {
     })
   }
 
-  // Get Order Product Names
+  // Product Names
   const getProductNames = (order) => {
     if (!Array.isArray(order.orderItems) || !order.orderItems.length) {
       return 'Mobile order'
     }
 
-    const names = order.orderItems.map(
-      (item) => item.name || item.product?.name || 'Product'
-    )
-
-    return names.join(', ')
+    return order.orderItems.map(
+      item => item.name || item.product?.name || 'Product'
+    ).join(', ')
   }
 
-  // Get Order Status
+  // Order Status
   const getStatus = (order) => {
     return order.orderStatus || order.status || 'Processing'
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f8f6]">
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f8f6] font-[Arial]">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading profile...</p>
+          <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">
+            Loading profile...
+          </p>
         </div>
       </div>
     )
@@ -153,7 +173,7 @@ const Profile = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f8f6] px-4">
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f8f6] px-4 font-[Arial]">
         <div className="bg-white p-8 rounded-2xl shadow-sm text-center max-w-md w-full">
           <p className="text-red-500 mb-5">{error}</p>
 
@@ -169,7 +189,7 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f8f6] py-10 px-4 sm:px-6">
+    <div className="min-h-screen bg-[#f8f8f6] py-10 px-4 sm:px-6 font-[Arial]">
       <div className="max-w-6xl mx-auto">
 
         {/* Page Heading */}
@@ -194,15 +214,27 @@ const Profile = () => {
 
             <div className="flex flex-col items-center text-center">
 
-              <div className="w-24 h-24 rounded-full bg-[#f0eee8] flex items-center justify-center mb-4">
-                <FiUser size={42} className="text-black" />
+              {/* Profile Image */}
+              <div className="w-28 h-28 rounded-full bg-[#f0eee8] flex items-center justify-center mb-4 overflow-hidden border-4 border-[#eee8df]">
+
+                {profileImage && !imageError ? (
+                  <img
+                    src={profileImage}
+                    alt={user?.name || 'Profile'}
+                    className="w-full h-full object-cover"
+                    onError={() => setImageError(true)}
+                  />
+                ) : (
+                  <FiUser size={45} className="text-[#9b7c54]" />
+                )}
+
               </div>
 
               <h2 className="text-xl font-bold text-black">
                 {user?.name || 'User'}
               </h2>
 
-              <p className="text-sm text-gray-500 mt-1">
+              <p className="text-sm text-gray-500 mt-1 break-all">
                 {user?.email || 'No email available'}
               </p>
 
@@ -213,7 +245,7 @@ const Profile = () => {
               )}
             </div>
 
-            <div className="border-t border-gray-100 my-6"></div>
+            <div className="border-t border-gray-100 my-6" />
 
             <div className="space-y-3">
 
@@ -222,7 +254,9 @@ const Profile = () => {
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition text-gray-700"
               >
                 <FiEdit2 size={18} />
-                <span className="text-sm font-medium">Edit Profile</span>
+                <span className="text-sm font-medium">
+                  Edit Profile
+                </span>
               </Link>
 
               <Link
@@ -230,7 +264,9 @@ const Profile = () => {
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition text-gray-700"
               >
                 <FiPackage size={18} />
-                <span className="text-sm font-medium">My Orders</span>
+                <span className="text-sm font-medium">
+                  My Orders
+                </span>
               </Link>
 
               <Link
@@ -238,7 +274,9 @@ const Profile = () => {
                 className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition text-gray-700"
               >
                 <FiHeart size={18} />
-                <span className="text-sm font-medium">My Wishlist</span>
+                <span className="text-sm font-medium">
+                  My Wishlist
+                </span>
               </Link>
 
               <button
@@ -246,7 +284,9 @@ const Profile = () => {
                 className="w-full flex items-center gap-3 p-3 rounded-lg hover:bg-red-50 text-red-500 transition"
               >
                 <FiLogOut size={18} />
-                <span className="text-sm font-medium">Logout</span>
+                <span className="text-sm font-medium">
+                  Logout
+                </span>
               </button>
 
             </div>
@@ -277,7 +317,9 @@ const Profile = () => {
                   <FiUser className="text-gray-500 mt-1" size={19} />
 
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Full Name</p>
+                    <p className="text-xs text-gray-400 mb-1">
+                      Full Name
+                    </p>
                     <p className="font-medium text-gray-800">
                       {user?.name || 'Not provided'}
                     </p>
@@ -288,7 +330,9 @@ const Profile = () => {
                   <FiMail className="text-gray-500 mt-1" size={19} />
 
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Email Address</p>
+                    <p className="text-xs text-gray-400 mb-1">
+                      Email Address
+                    </p>
                     <p className="font-medium text-gray-800 break-all">
                       {user?.email || 'Not provided'}
                     </p>
@@ -299,7 +343,9 @@ const Profile = () => {
                   <FiPhone className="text-gray-500 mt-1" size={19} />
 
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Phone Number</p>
+                    <p className="text-xs text-gray-400 mb-1">
+                      Phone Number
+                    </p>
                     <p className="font-medium text-gray-800">
                       {user?.phone || user?.phoneNumber || 'Not provided'}
                     </p>
@@ -310,9 +356,24 @@ const Profile = () => {
                   <FiMapPin className="text-gray-500 mt-1" size={19} />
 
                   <div>
-                    <p className="text-xs text-gray-400 mb-1">Address</p>
+                    <p className="text-xs text-gray-400 mb-1">
+                      Address
+                    </p>
                     <p className="font-medium text-gray-800">
                       {user?.address || 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <FiMapPin className="text-gray-500 mt-1" size={19} />
+
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">
+                      City
+                    </p>
+                    <p className="font-medium text-gray-800">
+                      {user?.city || 'Not provided'}
                     </p>
                   </div>
                 </div>
@@ -344,17 +405,20 @@ const Profile = () => {
 
               {ordersLoading ? (
                 <div className="py-10 text-center">
-                  <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                  <div className="w-8 h-8 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-sm text-gray-500">
                     Loading your orders...
                   </p>
                 </div>
               ) : ordersError ? (
                 <div className="py-8 text-center">
-                  <p className="text-red-500 text-sm">{ordersError}</p>
+                  <p className="text-red-500 text-sm">
+                    {ordersError}
+                  </p>
                 </div>
               ) : orders.length === 0 ? (
                 <div className="py-10 text-center">
+
                   <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
                     <FiPackage size={28} className="text-gray-400" />
                   </div>
@@ -377,7 +441,7 @@ const Profile = () => {
               ) : (
                 <div className="space-y-4">
 
-                  {orders.slice(0, 3).map((order) => {
+                  {orders.slice(0, 3).map(order => {
                     const status = getStatus(order)
 
                     return (
@@ -433,7 +497,6 @@ const Profile = () => {
                           </div>
 
                         </div>
-
                       </div>
                     )
                   })}
@@ -442,7 +505,6 @@ const Profile = () => {
               )}
 
             </div>
-
           </div>
         </div>
       </div>
