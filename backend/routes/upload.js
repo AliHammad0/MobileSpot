@@ -9,8 +9,7 @@ const uploadRoutes = express.Router()
 
 uploadRoutes.post(
   '/',
-  protect,
-  admin,
+  
   upload.single('image'),
   uploadImage
 )
