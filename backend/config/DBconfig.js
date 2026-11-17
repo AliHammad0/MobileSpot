@@ -1,17 +1,33 @@
 
-import mongoose from "mongoose";
-import dns from "node:dns";
-dns.setServers(["8.8.8.8", "8.8.4.4"]);
-import * as config from "./config.js";
+import mongoose from 'mongoose'
+import dns from 'node:dns'
+
+import * as config from './config.js'
+
+dns.setServers(['8.8.8.8', '8.8.4.4'])
+
+let connectionPromise = null
 
 const DBconfig = async () => {
   try {
-    await mongoose.connect(config.MONGO);
-    console.log("MongoDB connected successfully");
-  } catch (error) {
-    console.log("MongoDB connection failed:", error.message);
-    process.exit(1);
-  }
-};
+    if (mongoose.connection.readyState === 1) {
+      return
+    }
 
-export default DBconfig;
+    if (!connectionPromise) {
+      connectionPromise = mongoose.connect(config.MONGO, {
+        serverSelectionTimeoutMS: 10000
+      })
+    }
+
+    await connectionPromise
+
+    console.log('MongoDB connected successfully')
+  } catch (error) {
+    connectionPromise = null
+    console.log('MongoDB connection failed:', error.message)
+    throw error
+  }
+}
+
+export default DBconfig

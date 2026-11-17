@@ -17,10 +17,6 @@ import chatRoutes from './routes/chat.js'
 import luckySpinRoutes from './routes/luckySpin.js'
 
 const app = express()
-const httpServer = createServer(app)
-
-// Initialize Socket.IO
-const io = initializeSocket(httpServer)
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
@@ -42,21 +38,30 @@ app.use('/api/v1/upload', uploadRoutes)
 app.use('/api/v1/chat', chatRoutes)
 app.use('/api/v1/lucky-spin', luckySpinRoutes)
 
-const port = config.PORT || 8080
+// Export Express app for Vercel
+export default app
 
-const startServer = async () => {
-  try {
-    await DBconfig()
+// Local development server
+if (!process.env.VERCEL) {
+  const httpServer = createServer(app)
+  initializeSocket(httpServer)
 
-    httpServer.listen(port, () => {
-      console.log(`Server is running on http://localhost:${port}`)
-      console.log('Socket.IO is ready')
-      console.log('Real-time chat is ready')
-      console.log('Lucky Spin system is ready')
-    })
-  } catch (error) {
-    console.log('Server startup error:', error.message)
+  const port = config.PORT || 8080
+
+  const startServer = async () => {
+    try {
+      await DBconfig()
+
+      httpServer.listen(port, () => {
+        console.log(`Server is running on http://localhost:${port}`)
+        console.log('Socket.IO is ready')
+        console.log('Real-time chat is ready')
+        console.log('Lucky Spin system is ready')
+      })
+    } catch (error) {
+      console.log('Server startup error:', error.message)
+    }
   }
-}
 
-startServer()
+  startServer()
+}
