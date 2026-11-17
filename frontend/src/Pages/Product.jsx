@@ -13,7 +13,7 @@ import {
   FiRefreshCw
 } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1/products'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
 
 const priceRanges = [
   { label: 'Below Rs 15,000', min: 0, max: 14999 },

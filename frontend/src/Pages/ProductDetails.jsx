@@ -16,7 +16,7 @@ import {
   FiMessageCircle,
 } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1/products'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
 
 const tabs = ['Specifications', 'Installment Plans', 'Reviews', 'FAQs']
 
