@@ -1,6 +1,11 @@
 
-import React from 'react'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import React, { useEffect } from 'react'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation
+} from 'react-router-dom'
 
 import Header from './Pages/Header'
 import Footer from './Pages/Footer'
@@ -35,12 +40,28 @@ import LuckySpin from './Pages/LuckySpin'
 import ProtectedAdminRoute from './Admin/ProtectedAdminRoute'
 import Hero from './Pages/Hero'
 
+// Scroll to top whenever route changes
+const ScrollToTop = () => {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant'
+    })
+  }, [pathname])
+
+  return null
+}
+
 const App = () => {
   return (
     <BrowserRouter>
+      <ScrollToTop />
 
       <Header />
-      <Hero/>
+      <Hero />
 
       <div className="mt-20">
         <Routes>
