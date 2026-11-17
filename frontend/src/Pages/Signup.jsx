@@ -19,8 +19,8 @@ import {
   FiZap,
 } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1/users/register'
-const GOOGLE_API_URL = 'http://localhost:8080/api/v1/users/google-login'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/users/register'
+const GOOGLE_API_URL = 'https://mobilespot-backend.vercel.app/api/v1/users/google-login'
 
 const containerVariants = {
   hidden: {},
