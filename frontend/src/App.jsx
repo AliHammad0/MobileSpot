@@ -38,7 +38,7 @@ import ChatInbox from './Admin/ChatInbox'
 import LuckySpin from './Pages/LuckySpin'
 
 import ProtectedAdminRoute from './Admin/ProtectedAdminRoute'
-import Hero from './Pages/Hero'
+// import Hero from './Pages/Hero'
 
 // Scroll to top whenever route changes
 const ScrollToTop = () => {
@@ -61,7 +61,7 @@ const App = () => {
       <ScrollToTop />
 
       <Header />
-      <Hero />
+      {/* <Hero /> */}
 
       <div className="mt-20">
         <Routes>
