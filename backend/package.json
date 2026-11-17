@@ -6,7 +6,6 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "start:socket": "node socketServer.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {

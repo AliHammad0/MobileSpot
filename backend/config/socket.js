@@ -11,10 +11,8 @@ const initializeSocket = (httpServer) => {
   const io = new Server(httpServer, {
     cors: {
       origin: '*',
-      methods: ['GET', 'POST'],
-      credentials: false
-    },
-    transports: ['websocket', 'polling']
+      methods: ['GET', 'POST']
+    }
   })
 
   // Socket authentication
@@ -69,7 +67,6 @@ const initializeSocket = (httpServer) => {
           conversationId: conversationId.toString()
         })
       } catch (error) {
-        console.log('Join conversation error:', error.message)
         socket.emit('chat_error', 'Unable to join conversation')
       }
     })
@@ -79,11 +76,7 @@ const initializeSocket = (httpServer) => {
       try {
         const { conversationId, message } = data || {}
 
-        if (
-          !conversationId ||
-          typeof message !== 'string' ||
-          !message.trim()
-        ) {
+        if (!conversationId || typeof message !== 'string' || !message.trim()) {
           socket.emit('chat_error', 'Valid message is required')
           return
         }
@@ -129,10 +122,7 @@ const initializeSocket = (httpServer) => {
         const populatedMessage = await Message.findById(newMessage._id)
           .populate('sender', 'name email')
 
-        io.to(conversationId.toString()).emit(
-          'new_message',
-          populatedMessage
-        )
+        io.to(conversationId.toString()).emit('new_message', populatedMessage)
       } catch (error) {
         console.log('Socket message error:', error.message)
         socket.emit('chat_error', 'Message could not be sent')
