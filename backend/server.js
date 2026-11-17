@@ -20,7 +20,15 @@ const app = express()
 
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
-app.use(cors())
+
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://mobilespot-frontend.vercel.app'
+  ],
+  credentials: true
+}))
+
 app.use(morgan('dev'))
 
 app.get('/', (req, res) => {
@@ -38,12 +46,12 @@ app.use('/api/v1/upload', uploadRoutes)
 app.use('/api/v1/chat', chatRoutes)
 app.use('/api/v1/lucky-spin', luckySpinRoutes)
 
-// Export Express app for Vercel
 export default app
 
 // Local development server
 if (!process.env.VERCEL) {
   const httpServer = createServer(app)
+
   initializeSocket(httpServer)
 
   const port = config.PORT || 8080
