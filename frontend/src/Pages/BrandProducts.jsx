@@ -11,7 +11,7 @@ import {
   FiX,
 } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1'
 
 // Product Card Animation
 const containerVariants = {
@@ -44,6 +44,135 @@ const cardVariants = {
     y: 20,
     transition: { duration: 0.2 },
   },
+}
+
+// Mobile Box Explosion Animation
+const PhoneBoxExplosion = () => {
+  const phones = Array.from({ length: 24 }, (_, index) => ({
+    id: index,
+    left: `${18 + (index % 8) * 4.5}%`,
+    delay: 2.1 + index * 0.055,
+    rotation:
+      (index % 2 === 0 ? 1 : -1) *
+      (25 + (index % 5) * 12),
+    distance: 180 + (index % 4) * 45,
+  }))
+
+  return (
+    <div className="pointer-events-none absolute inset-0 z-30 overflow-hidden">
+
+      {/* Mobile Box Lift */}
+      <motion.div
+        initial={{ y: 0, scale: 1, rotate: 0, opacity: 1 }}
+        animate={{
+          y: [0, -35, -65, -85],
+          scale: [1, 1.12, 1.3, 0.2],
+          rotate: [0, -8, 12, 35],
+          opacity: [1, 1, 1, 0],
+        }}
+        transition={{
+          duration: 1.8,
+          delay: 0.65,
+          times: [0, 0.35, 0.7, 1],
+          ease: 'easeInOut',
+        }}
+        className="absolute left-[22%] top-[43%] z-40"
+      >
+        <div className="relative flex h-16 w-20 items-center justify-center rounded-lg border-2 border-[#8b704d] bg-[#c5a477] shadow-xl sm:h-20 sm:w-24">
+
+          <div className="absolute left-1/2 top-0 h-full w-3 -translate-x-1/2 bg-[#e8d5b8]/70" />
+
+          <span className="relative z-10 text-3xl sm:text-4xl">
+            📱
+          </span>
+
+          <span className="absolute -top-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black px-2 py-1 text-[8px] font-bold tracking-widest text-white">
+            MOBILE BOX
+          </span>
+        </div>
+      </motion.div>
+
+      {/* Explosion Flash */}
+      <motion.div
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{
+          scale: [0, 1.8, 2.5, 0],
+          opacity: [0, 0.8, 0.4, 0],
+        }}
+        transition={{
+          delay: 2.15,
+          duration: 0.65,
+          ease: 'easeOut',
+        }}
+        className="absolute left-[26%] top-[42%] h-20 w-20 rounded-full bg-[#d7b98e] blur-xl"
+      />
+
+      {/* 24 Falling Smartphones */}
+      {phones.map((phone) => (
+        <motion.div
+          key={phone.id}
+          initial={{
+            y: -40,
+            opacity: 0,
+            scale: 0.3,
+            rotate: 0,
+          }}
+          animate={{
+            y: [0, phone.distance * 0.35, phone.distance],
+            opacity: [0, 1, 1, 0],
+            scale: [0.3, 1, 0.85],
+            rotate: [0, phone.rotation * 0.5, phone.rotation],
+          }}
+          transition={{
+            delay: phone.delay,
+            duration: 2.2 + (phone.id % 3) * 0.25,
+            ease: 'easeIn',
+            times: [0, 0.3, 1],
+          }}
+          style={{
+            left: phone.left,
+            top: '35%',
+          }}
+          className="absolute"
+        >
+          <div className="relative h-8 w-[17px] rounded-[5px] border-2 border-[#252525] bg-[#111] p-[2px] shadow-lg sm:h-10 sm:w-5">
+            <div className="h-full w-full rounded-[2px] bg-gradient-to-br from-[#d8c2a3] via-[#8e9ba8] to-[#242c39]" />
+
+            <div className="absolute left-1/2 top-[2px] h-[2px] w-2 -translate-x-1/2 rounded-full bg-black" />
+          </div>
+        </motion.div>
+      ))}
+
+      {/* Explosion Particles */}
+      {Array.from({ length: 12 }, (_, index) => (
+        <motion.span
+          key={`particle-${index}`}
+          initial={{
+            x: 0,
+            y: 0,
+            opacity: 0,
+            scale: 0,
+          }}
+          animate={{
+            x: Math.cos(index * 30 * Math.PI / 180) * 90,
+            y: Math.sin(index * 30 * Math.PI / 180) * 90,
+            opacity: [0, 1, 0],
+            scale: [0, 1.3, 0],
+          }}
+          transition={{
+            delay: 2.15,
+            duration: 0.8,
+            ease: 'easeOut',
+          }}
+          style={{
+            left: '26%',
+            top: '43%',
+          }}
+          className="absolute h-2 w-2 rounded-full bg-[#b99b72]"
+        />
+      ))}
+    </div>
+  )
 }
 
 // Brand Announcer Character
@@ -101,6 +230,9 @@ const BrandAnnouncer = ({ brand }) => {
 
             <div className="relative z-10 flex flex-col items-center justify-center gap-5 sm:flex-row sm:gap-8">
 
+              {/* Phone Box Animation */}
+              <PhoneBoxExplosion />
+
               {/* Salesman Character */}
               <motion.div
                 initial={{ x: -180, opacity: 0, rotate: -8 }}
@@ -111,7 +243,7 @@ const BrandAnnouncer = ({ brand }) => {
                   damping: 13,
                   duration: 1,
                 }}
-                className="relative shrink-0"
+                className="relative z-10 shrink-0"
               >
                 {/* Speech Bubble */}
                 <motion.div
@@ -254,7 +386,7 @@ const BrandAnnouncer = ({ brand }) => {
               </motion.div>
 
               {/* Brand Banner */}
-              <div className="relative w-full max-w-lg flex-1">
+              <div className="relative z-10 w-full max-w-lg flex-1">
 
                 {/* Banner Pole */}
                 <motion.div
