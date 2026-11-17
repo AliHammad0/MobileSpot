@@ -7,9 +7,11 @@ import {
   FiMapPin,
   FiSave,
   FiArrowLeft,
+  FiCamera,
+  FiX
 } from 'react-icons/fi'
 
-const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/users/me'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1'
 
 const EditProfile = () => {
   const navigate = useNavigate()
@@ -18,8 +20,12 @@ const EditProfile = () => {
     name: '',
     phone: '',
     address: '',
-    city: '',
+    city: ''
   })
+
+  const [profileImage, setProfileImage] = useState('')
+  const [selectedImage, setSelectedImage] = useState(null)
+  const [preview, setPreview] = useState('')
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -27,22 +33,20 @@ const EditProfile = () => {
   const [messageType, setMessageType] = useState('info')
   const [showSuccess, setShowSuccess] = useState(false)
 
+  const token = localStorage.getItem('token')
+
   useEffect(() => {
     const fetchProfile = async () => {
-      const token = localStorage.getItem('token')
-
       if (!token) {
         navigate('/login')
         return
       }
 
       try {
-        const response = await fetch(API_URL, {
-          method: 'GET',
+        const response = await fetch(`${API_URL}/users/me`, {
           headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
+            Authorization: `Bearer ${token}`
+          }
         })
 
         const data = await response.json()
@@ -64,8 +68,15 @@ const EditProfile = () => {
           name: user.name || '',
           phone: user.phone || '',
           address: user.address || '',
-          city: user.city || '',
+          city: user.city || ''
         })
+
+        setProfileImage(
+          user.profileImage ||
+          user.avatar ||
+          user.image ||
+          ''
+        )
 
       } catch (error) {
         setMessage(error.message || 'Something went wrong.')
@@ -76,7 +87,19 @@ const EditProfile = () => {
     }
 
     fetchProfile()
-  }, [navigate])
+  }, [navigate, token])
+
+  useEffect(() => {
+    if (!selectedImage) {
+      setPreview('')
+      return
+    }
+
+    const objectUrl = URL.createObjectURL(selectedImage)
+    setPreview(objectUrl)
+
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [selectedImage])
 
   const showMessage = (text, type = 'info') => {
     setMessage(text)
@@ -86,33 +109,95 @@ const EditProfile = () => {
   const handleChange = (e) => {
     const { name, value } = e.target
 
-    setFormData((prev) => ({
+    setFormData(prev => ({
       ...prev,
-      [name]: value,
+      [name]: value
     }))
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      showMessage('Please select a valid image.', 'error')
+      e.target.value = ''
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showMessage('Image must be 5MB or smaller.', 'error')
+      e.target.value = ''
+      return
+    }
+
+    setSelectedImage(file)
+    showMessage('')
+  }
+
+  const removeImage = () => {
+    setSelectedImage(null)
+    setPreview('')
+    setProfileImage('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
-    const token = localStorage.getItem('token')
-
     if (!token) {
-      showMessage('Please login first.', 'error')
+      navigate('/login')
       return
     }
 
     try {
       setSaving(true)
-      showMessage('', 'info')
+      showMessage('')
 
-      const response = await fetch(API_URL, {
+      let imageUrl = profileImage
+
+      // Upload image first
+      if (selectedImage) {
+        showMessage('Uploading profile image...')
+
+        const uploadFormData = new FormData()
+        uploadFormData.append('image', selectedImage)
+
+        const uploadResponse = await fetch(`${API_URL}/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`
+          },
+          body: uploadFormData
+        })
+
+        const uploadData = await uploadResponse.json().catch(() => ({}))
+
+        if (!uploadResponse.ok) {
+          throw new Error(uploadData.message || 'Image upload failed.')
+        }
+
+        imageUrl = uploadData.image?.url || uploadData.url
+
+        if (!imageUrl) {
+          throw new Error('Image URL was not returned.')
+        }
+      }
+
+      showMessage('Saving profile...')
+
+      const updatedData = {
+        ...formData,
+        profileImage: imageUrl
+      }
+
+      const response = await fetch(`${API_URL}/users/me`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(updatedData)
       })
 
       const data = await response.json()
@@ -130,6 +215,8 @@ const EditProfile = () => {
 
       localStorage.setItem('user', JSON.stringify(data.user))
 
+      setProfileImage(imageUrl)
+      setSelectedImage(null)
       setShowSuccess(true)
 
       setTimeout(() => {
@@ -138,7 +225,6 @@ const EditProfile = () => {
 
     } catch (error) {
       showMessage(error.message || 'Something went wrong.', 'error')
-      setMessageType('error')
     } finally {
       setSaving(false)
     }
@@ -177,22 +263,77 @@ const EditProfile = () => {
           </h1>
 
           <p className="mt-2 text-sm text-gray-500">
-            Update your personal information.
+            Update your personal information and profile picture.
           </p>
         </div>
 
-        {/* Edit Form */}
         <form
           onSubmit={handleSubmit}
           className="rounded-2xl bg-white p-6 shadow-sm sm:p-10"
         >
+
+          {/* Profile Image */}
+          <div className="mb-9 flex flex-col items-center border-b border-gray-100 pb-8">
+
+            <div className="relative">
+              <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-[#eee8df] bg-[#f8f7f4]">
+
+                {preview || profileImage ? (
+                  <img
+                    src={preview || profileImage}
+                    alt="Profile"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <FiUser className="text-5xl text-[#9b7c54]" />
+                )}
+
+              </div>
+
+              <label
+                htmlFor="profileImage"
+                className="absolute bottom-1 right-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-[#171717] text-white shadow-lg transition hover:bg-[#9b7c54]"
+              >
+                <FiCamera size={18} />
+              </label>
+
+              <input
+                id="profileImage"
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+              />
+            </div>
+
+            <h2 className="mt-4 text-base font-bold text-[#171717]">
+              Profile Picture
+            </h2>
+
+            <p className="mt-1 text-xs text-gray-500">
+              JPG, PNG or WEBP. Maximum 5MB.
+            </p>
+
+            {(preview || profileImage) && (
+              <button
+                type="button"
+                onClick={removeImage}
+                className="mt-3 flex items-center gap-2 text-xs font-semibold text-red-600 hover:text-red-700"
+              >
+                <FiX />
+                Remove Image
+              </button>
+            )}
+
+          </div>
+
+          {/* Personal Information */}
           <h2 className="mb-6 text-lg font-bold text-[#171717]">
             Personal Information
           </h2>
 
           <div className="grid gap-6 sm:grid-cols-2">
 
-            {/* Name */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Full Name
@@ -213,7 +354,6 @@ const EditProfile = () => {
               </div>
             </div>
 
-            {/* Phone */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Phone Number
@@ -233,7 +373,6 @@ const EditProfile = () => {
               </div>
             </div>
 
-            {/* Address */}
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 Address
@@ -253,7 +392,6 @@ const EditProfile = () => {
               </div>
             </div>
 
-            {/* City */}
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">
                 City
@@ -277,13 +415,11 @@ const EditProfile = () => {
 
           {/* Message */}
           {message && (
-            <p
-              className={`mt-7 rounded-lg p-3 text-sm ${
-                messageType === 'error'
-                  ? 'bg-red-50 text-red-700'
-                  : 'bg-gray-100 text-gray-700'
-              }`}
-            >
+            <p className={`mt-7 rounded-lg p-3 text-sm ${
+              messageType === 'error'
+                ? 'bg-red-50 text-red-700'
+                : 'bg-gray-100 text-gray-700'
+            }`}>
               {message}
             </p>
           )}
@@ -310,6 +446,7 @@ const EditProfile = () => {
             </button>
 
           </div>
+
         </form>
       </div>
 
@@ -317,114 +454,40 @@ const EditProfile = () => {
       {showSuccess && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 px-4 backdrop-blur-md">
 
-          <style>{`
-            @keyframes successPop {
-              0% {
-                transform: scale(0.3);
-                opacity: 0;
-              }
-              70% {
-                transform: scale(1.12);
-                opacity: 1;
-              }
-              100% {
-                transform: scale(1);
-                opacity: 1;
-              }
-            }
+          <div className="w-full max-w-sm rounded-3xl bg-white px-7 py-10 text-center shadow-2xl">
 
-            @keyframes checkDraw {
-              from {
-                stroke-dashoffset: 50;
-              }
-              to {
-                stroke-dashoffset: 0;
-              }
-            }
-
-            @keyframes successFade {
-              from {
-                opacity: 0;
-                transform: translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateY(0);
-              }
-            }
-
-            .success-pop {
-              animation: successPop 0.65s cubic-bezier(.16,1,.3,1) both;
-            }
-
-            .success-check {
-              stroke-dasharray: 50;
-              stroke-dashoffset: 50;
-              animation: checkDraw 0.5s ease forwards 0.45s;
-            }
-
-            .success-content {
-              animation: successFade 0.6s ease both 0.2s;
-            }
-
-            @media (prefers-reduced-motion: reduce) {
-              .success-pop,
-              .success-check,
-              .success-content {
-                animation: none;
-              }
-
-              .success-check {
-                stroke-dashoffset: 0;
-              }
-            }
-          `}</style>
-
-          <div className="success-pop relative w-full max-w-sm overflow-hidden rounded-3xl bg-white px-7 py-10 text-center shadow-2xl">
-
-            <div className="relative mx-auto flex h-28 w-28 items-center justify-center rounded-full bg-[#eee8df]">
-              <div className="absolute inset-2 rounded-full border border-[#c2a47e]/40" />
-
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#171717] shadow-lg">
-                <svg
-                  viewBox="0 0 50 50"
-                  className="h-12 w-12"
-                  fill="none"
-                >
-                  <path
-                    d="M12 25L21 34L39 16"
-                    stroke="#ffffff"
-                    strokeWidth="4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="success-check"
-                  />
-                </svg>
-              </div>
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#171717] text-white">
+              <svg viewBox="0 0 50 50" className="h-12 w-12" fill="none">
+                <path
+                  d="M12 25L21 34L39 16"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
 
-            <div className="success-content relative mt-7">
-              <p className="text-xs font-bold uppercase tracking-[0.25em] text-[#9b7c54]">
-                Successfully Updated
-              </p>
+            <p className="mt-7 text-xs font-bold uppercase tracking-[0.25em] text-[#9b7c54]">
+              Successfully Updated
+            </p>
 
-              <h2 className="mt-3 text-2xl font-bold text-[#171717]">
-                Profile Updated!
-              </h2>
+            <h2 className="mt-3 text-2xl font-bold text-[#171717]">
+              Profile Updated!
+            </h2>
 
-              <p className="mt-3 text-sm leading-6 text-gray-500">
-                Your personal information has been saved successfully.
-              </p>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              Your personal information has been saved successfully.
+            </p>
 
-              <div className="mt-7 flex items-center justify-center gap-2 text-xs font-semibold text-[#9b7c54]">
-                <span className="h-2 w-2 animate-pulse rounded-full bg-[#9b7c54]" />
-                Redirecting to your profile...
-              </div>
-            </div>
+            <p className="mt-7 text-xs font-semibold text-[#9b7c54]">
+              Redirecting to your profile...
+            </p>
 
           </div>
         </div>
       )}
+
     </div>
   )
 }
