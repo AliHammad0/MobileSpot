@@ -213,7 +213,7 @@ const BrandAnnouncer = ({ brand }) => {
           }}
           className="mb-10 overflow-hidden"
         >
-          <div className="relative overflow-hidden rounded-3xl border border-[#e9e4db] bg-gradient-to-r from-[#f0ede6] via-white to-[#f4f0e9] px-5 py-7 sm:px-10 sm:py-9">
+          <div className="relative isolate overflow-hidden rounded-3xl border border-[#e9e4db] bg-gradient-to-r from-[#f0ede6] via-white to-[#f4f0e9] px-5 py-7 sm:px-10 sm:py-9">
 
             {/* Background Decoration */}
             <motion.div
@@ -243,7 +243,7 @@ const BrandAnnouncer = ({ brand }) => {
                   damping: 13,
                   duration: 1,
                 }}
-                className="relative z-10 shrink-0"
+                className="relative z-50 shrink-0"
               >
                 {/* Speech Bubble */}
                 <motion.div
@@ -254,7 +254,7 @@ const BrandAnnouncer = ({ brand }) => {
                     duration: 0.45,
                     type: 'spring',
                   }}
-                 className="absolute -right-24 -top-3 z-[100] w-36 rounded-xl border border-gray-100 bg-white px-3 py-2 text-center shadow-xl sm:-right-28 sm:w-44"
+                  className="absolute -right-24 -top-3 z-[100] w-36 rounded-xl border border-gray-100 bg-white px-3 py-2 text-center shadow-xl sm:-right-28 sm:w-44"
                 >
                   <p className="text-[10px] font-bold leading-relaxed text-gray-800 sm:text-xs">
                     Hey! Welcome to
@@ -886,5 +886,3 @@ const BrandProducts = () => {
 }
 
 export default BrandProducts
-
-
