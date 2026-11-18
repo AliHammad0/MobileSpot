@@ -16,6 +16,372 @@ import {
   connectChatSocket
 } from '../services/chatApi'
 
+// Customer Support Intro Animation
+const ChatIntroAnimation = () => {
+  return (
+    <div className="chat-intro-overlay">
+      <style>{`
+        .chat-intro-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #f7f6f3;
+          animation: chatOverlayOut .7s ease 3.8s forwards;
+          font-family: Arial, sans-serif;
+        }
+
+        .chat-intro-scene {
+          width: min(90%, 520px);
+          text-align: center;
+          animation: chatSceneIn .7s ease both;
+        }
+
+        .chat-agent {
+          position: relative;
+          width: 180px;
+          height: 180px;
+          margin: 0 auto 24px;
+          animation: agentFloat 2s ease-in-out infinite;
+        }
+
+        .agent-head {
+          position: absolute;
+          width: 76px;
+          height: 76px;
+          top: 22px;
+          left: 52px;
+          border: 5px solid #171717;
+          border-radius: 50%;
+          background: #d9a47c;
+          z-index: 1;
+        }
+
+        .agent-hair {
+          position: absolute;
+          width: 76px;
+          height: 34px;
+          top: 17px;
+          left: 52px;
+          border-radius: 45px 45px 12px 12px;
+          background: #171717;
+          z-index: 2;
+        }
+
+        .agent-body {
+          position: absolute;
+          width: 126px;
+          height: 72px;
+          left: 27px;
+          bottom: 0;
+          border-radius: 65px 65px 15px 15px;
+          background: #171717;
+        }
+
+        .agent-headset {
+          position: absolute;
+          width: 91px;
+          height: 90px;
+          top: 12px;
+          left: 44px;
+          border: 8px solid #c58b22;
+          border-bottom: 0;
+          border-radius: 55px 55px 0 0;
+          z-index: 3;
+        }
+
+        .agent-mic {
+          position: absolute;
+          width: 32px;
+          height: 5px;
+          top: 91px;
+          left: 106px;
+          border-radius: 10px;
+          background: #c58b22;
+          transform: rotate(15deg);
+          z-index: 4;
+        }
+
+        .agent-eye {
+          position: absolute;
+          width: 5px;
+          height: 5px;
+          border-radius: 50%;
+          background: #171717;
+          top: 57px;
+          z-index: 4;
+        }
+
+        .agent-eye.left { left: 73px; }
+        .agent-eye.right { left: 103px; }
+
+        .chat-bubble {
+          position: absolute;
+          padding: 10px 14px;
+          border-radius: 14px;
+          background: white;
+          border: 1px solid #e5e2dc;
+          color: #171717;
+          font-size: 12px;
+          font-weight: 700;
+          box-shadow: 0 8px 25px #0000000d;
+          opacity: 0;
+        }
+
+        .bubble-one {
+          top: 5px;
+          right: -65px;
+          animation: bubbleShow .6s ease 1s forwards;
+        }
+
+        .bubble-two {
+          bottom: 20px;
+          left: -75px;
+          animation: bubbleShow .6s ease 2s forwards;
+        }
+
+        .chat-screen {
+          width: min(100%, 360px);
+          margin: 0 auto;
+          padding: 14px;
+          border: 1px solid #e5e2dc;
+          border-radius: 18px;
+          background: white;
+          box-shadow: 0 20px 60px #17171712;
+          animation: screenAppear .8s ease 1.4s both;
+        }
+
+        .screen-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #eeeae4;
+        }
+
+        .screen-avatar {
+          width: 34px;
+          height: 34px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          background: #171717;
+          color: #d6a43a;
+        }
+
+        .screen-lines {
+          flex: 1;
+          text-align: left;
+        }
+
+        .screen-line {
+          height: 7px;
+          margin: 5px 0;
+          border-radius: 10px;
+          background: #e9e7e2;
+        }
+
+        .screen-line.short {
+          width: 45%;
+        }
+
+        .screen-line.long {
+          width: 75%;
+        }
+
+        .screen-messages {
+          display: flex;
+          flex-direction: column;
+          gap: 9px;
+          padding-top: 13px;
+        }
+
+        .screen-message {
+          width: 65%;
+          height: 25px;
+          border-radius: 12px;
+          background: #f1f0ed;
+          animation: messageAppear .5s ease both;
+        }
+
+        .screen-message.admin {
+          width: 55%;
+          align-self: flex-end;
+          background: #171717;
+          animation-delay: 2.2s;
+        }
+
+        .screen-message.customer {
+          animation-delay: 1.8s;
+        }
+
+        .screen-message.last {
+          width: 75%;
+          animation-delay: 2.6s;
+        }
+
+        .chat-intro-title {
+          margin-top: 23px;
+          color: #171717;
+          font-size: 23px;
+          font-weight: 800;
+          letter-spacing: -.5px;
+          animation: titleAppear .7s ease 1.2s both;
+        }
+
+        .chat-intro-subtitle {
+          margin-top: 8px;
+          color: #77736d;
+          font-size: 13px;
+          animation: titleAppear .7s ease 1.5s both;
+        }
+
+        .chat-intro-loader {
+          width: 110px;
+          height: 3px;
+          margin: 22px auto 0;
+          overflow: hidden;
+          border-radius: 10px;
+          background: #e5e2dc;
+        }
+
+        .chat-intro-loader span {
+          display: block;
+          width: 35%;
+          height: 100%;
+          border-radius: 10px;
+          background: #c58b22;
+          animation: loaderMove 2s ease-in-out infinite;
+        }
+
+        @keyframes chatSceneIn {
+          from { opacity: 0; transform: translateY(20px) scale(.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes agentFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-7px); }
+        }
+
+        @keyframes bubbleShow {
+          from { opacity: 0; transform: translateY(12px) scale(.8); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes screenAppear {
+          from { opacity: 0; transform: translateY(18px) scale(.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes messageAppear {
+          from { opacity: 0; transform: translateX(12px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes titleAppear {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes loaderMove {
+          0% { transform: translateX(-110%); }
+          100% { transform: translateX(320%); }
+        }
+
+        @keyframes chatOverlayOut {
+          to {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .chat-agent {
+            transform: scale(.85);
+            margin-bottom: 5px;
+          }
+
+          .chat-intro-title {
+            font-size: 20px;
+          }
+
+          .bubble-one {
+            right: -35px;
+          }
+
+          .bubble-two {
+            left: -35px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .chat-intro-overlay *,
+          .chat-intro-overlay {
+            animation-duration: .01ms !important;
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
+
+      <div className="chat-intro-scene">
+        <div className="chat-agent">
+          <div className="agent-body" />
+          <div className="agent-head" />
+          <div className="agent-hair" />
+          <div className="agent-eye left" />
+          <div className="agent-eye right" />
+          <div className="agent-headset" />
+          <div className="agent-mic" />
+
+          <div className="chat-bubble bubble-one">
+            Hello!
+          </div>
+
+          <div className="chat-bubble bubble-two">
+            How can I help?
+          </div>
+        </div>
+
+        <div className="chat-screen">
+          <div className="screen-header">
+            <div className="screen-avatar">
+              <FiHeadphones size={17} />
+            </div>
+
+            <div className="screen-lines">
+              <div className="screen-line long" />
+              <div className="screen-line short" />
+            </div>
+          </div>
+
+          <div className="screen-messages">
+            <div className="screen-message customer" />
+            <div className="screen-message admin" />
+            <div className="screen-message customer last" />
+          </div>
+        </div>
+
+        <h2 className="chat-intro-title">
+          Customer Support
+        </h2>
+
+        <p className="chat-intro-subtitle">
+          Your conversations, all in one place.
+        </p>
+
+        <div className="chat-intro-loader">
+          <span />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const ChatInbox = () => {
   const [conversations, setConversations] = useState([])
   const [selectedConversation, setSelectedConversation] = useState(null)
@@ -27,11 +393,23 @@ const ChatInbox = () => {
   const [sending, setSending] = useState(false)
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState('')
+  const [showIntro, setShowIntro] = useState(true)
 
   const socketRef = useRef(null)
   const selectedRef = useRef(null)
   const joinedRef = useRef(false)
   const bottomRef = useRef(null)
+
+  // Show intro animation every time page opens
+  useEffect(() => {
+    setShowIntro(true)
+
+    const timer = setTimeout(() => {
+      setShowIntro(false)
+    }, 4500)
+
+    return () => clearTimeout(timer)
+  }, [])
 
   // Keep selected conversation updated
   useEffect(() => {
@@ -284,6 +662,8 @@ const ChatInbox = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f6f3] p-3 font-[Arial,sans-serif] sm:p-6">
+
+      {showIntro && <ChatIntroAnimation />}
 
       <div className="mx-auto max-w-7xl">
 
