@@ -5,7 +5,10 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://mobilespot-backend.vercel.app/api/v1'
 
-const SOCKET_URL = API_URL.replace(/\/api\/v1\/?$/, '')
+// Separate Enzonic Socket.IO server
+const SOCKET_URL =
+  import.meta.env.VITE_SOCKET_URL ||
+  'https://mobilespot.enzonic.dev'
 
 const getToken = () => localStorage.getItem('token')
 
