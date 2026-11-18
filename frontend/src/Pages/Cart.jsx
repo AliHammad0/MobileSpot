@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
+import { useNavigate } from 'react-router-dom'
 import {
   FiTrash2,
   FiPlus,
@@ -19,16 +19,18 @@ import {
 
 const Cart = ({ isOpen, onClose }) => {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
 
   const cartItems = useSelector(
     (state) => state.cart.cartItems
   )
 
   const [deletingItem, setDeletingItem] = useState(null)
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
 
   const subtotal = cartItems.reduce(
     (total, item) =>
-      total + Number(item.price || 0) * item.quantity,
+      total + Number(item.price || 0) * Number(item.quantity || 0),
     0
   )
 
@@ -43,7 +45,7 @@ const Cart = ({ isOpen, onClose }) => {
   const formatPrice = (price) =>
     `Rs. ${Number(price).toLocaleString('en-PK')}`
 
-  // Animated Product Delete
+  // Remove Product
   const handleRemoveProduct = (productId) => {
     if (deletingItem) return
 
@@ -55,10 +57,24 @@ const Cart = ({ isOpen, onClose }) => {
     }, 350)
   }
 
-  // Close Cart With Escape Key
+  // Checkout Animation and Direct Navigation
+  const handleCheckout = () => {
+    if (isCheckingOut || cartItems.length === 0) return
+
+    setIsCheckingOut(true)
+
+    // Direct browser navigation after animation
+    window.setTimeout(() => {
+      window.location.assign('/checkout')
+    }, 2200)
+  }
+
+  // Escape Key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose?.()
+      if (e.key === 'Escape' && !isCheckingOut) {
+        onClose?.()
+      }
     }
 
     window.addEventListener('keydown', handleEscape)
@@ -66,11 +82,11 @@ const Cart = ({ isOpen, onClose }) => {
     return () => {
       window.removeEventListener('keydown', handleEscape)
     }
-  }, [onClose])
+  }, [onClose, isCheckingOut])
 
-  // Prevent Background Scrolling
+  // Background Scroll
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isCheckingOut) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -79,13 +95,95 @@ const Cart = ({ isOpen, onClose }) => {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [isOpen])
+  }, [isOpen, isCheckingOut])
 
   return (
     <>
+      <style>{`
+        @keyframes riderRide {
+          0% {
+            left: -280px;
+            opacity: 0;
+          }
+
+          10% {
+            opacity: 1;
+          }
+
+          90% {
+            opacity: 1;
+          }
+
+          100% {
+            left: calc(100% + 280px);
+            opacity: 0;
+          }
+        }
+
+        .rider-ride-animation {
+          animation: riderRide 2s linear forwards;
+          will-change: left;
+        }
+
+        @keyframes loadingPulse {
+          0%, 100% {
+            opacity: 0.4;
+          }
+
+          50% {
+            opacity: 1;
+          }
+        }
+
+        .loading-pulse {
+          animation: loadingPulse 1s infinite;
+        }
+      `}</style>
+
+      {/* Checkout Animation Screen */}
+      {isCheckingOut && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden bg-white">
+
+          <div className="px-5 text-center">
+            <h2 className="text-2xl font-bold text-gray-900">
+              Preparing Your Order
+            </h2>
+
+            <p className="mt-3 text-sm text-gray-500">
+              Your shopping journey is almost complete.
+            </p>
+          </div>
+
+          {/* Moving Delivery Rider */}
+          <div className="relative mt-8 h-64 w-full overflow-hidden">
+
+            <img
+              src="/delivery-rider.png"
+              alt="Delivery rider"
+              className="rider-ride-animation absolute top-1/2 h-56 w-64 -translate-y-1/2 object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = 'none'
+              }}
+            />
+
+          </div>
+
+          <div className="mt-5 text-center">
+            <p className="text-sm font-semibold text-gray-800">
+              Getting everything ready...
+            </p>
+
+            <p className="loading-pulse mt-2 text-xs text-gray-400">
+              Please wait a moment
+            </p>
+          </div>
+
+        </div>
+      )}
+
       {/* Overlay */}
       <div
-        onClick={onClose}
+        onClick={!isCheckingOut ? onClose : undefined}
         className={`fixed inset-0 z-[100] bg-black/50 transition-opacity duration-300 ${
           isOpen
             ? 'visible opacity-100'
@@ -101,8 +199,10 @@ const Cart = ({ isOpen, onClose }) => {
             : 'translate-x-full'
         }`}
       >
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
+
           <div>
             <h2 className="text-xl font-bold text-gray-900">
               Shopping Cart
@@ -115,27 +215,27 @@ const Cart = ({ isOpen, onClose }) => {
 
           <button
             onClick={onClose}
-            className="rounded-full bg-gray-100 p-2 text-gray-700 transition hover:bg-gray-200"
+            disabled={isCheckingOut}
+            className="rounded-full bg-gray-100 p-2 text-gray-700 transition hover:bg-gray-200 disabled:opacity-50"
             aria-label="Close cart"
           >
             <FiX size={21} />
           </button>
+
         </div>
 
         {/* Cart Products */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
 
           {cartItems.length === 0 ? (
+
             <div className="flex h-full flex-col items-center justify-center text-center">
 
-              {/* Delivery Rider Image */}
-              <div className="mb-4 flex w-full items-center justify-center">
-                <img
-                  src="/delivery-rider.png"
-                  alt="The Shoe Spot delivery rider"
-                  className="h-52 w-full object-contain"
-                />
-              </div>
+              <img
+                src="/delivery-rider.png"
+                alt="The Shoe Spot delivery rider"
+                className="mb-4 h-52 w-full object-contain"
+              />
 
               <h3 className="text-xl font-bold text-gray-900">
                 Your Cart is Empty
@@ -153,14 +253,18 @@ const Cart = ({ isOpen, onClose }) => {
                 <FiShoppingCart size={17} />
                 Continue Shopping
               </button>
+
             </div>
+
           ) : (
+
             <div className="space-y-5">
 
               {cartItems.map((item) => (
+
                 <div
                   key={item._id}
-                  className={`flex gap-4 border-b border-gray-100 pb-5 transition-all duration-350 ease-in-out ${
+                  className={`flex gap-4 border-b border-gray-100 pb-5 transition-all duration-300 ${
                     deletingItem === item._id
                       ? 'translate-x-12 scale-95 opacity-0'
                       : 'translate-x-0 scale-100 opacity-100'
@@ -169,6 +273,7 @@ const Cart = ({ isOpen, onClose }) => {
 
                   {/* Product Image */}
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f7f6f3]">
+
                     <img
                       src={
                         item.image ||
@@ -179,12 +284,14 @@ const Cart = ({ isOpen, onClose }) => {
                       alt={item.name}
                       className="h-full w-full object-contain p-2"
                     />
+
                   </div>
 
                   {/* Product Details */}
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
 
                     <div className="flex justify-between gap-2">
+
                       <div>
                         <h3 className="text-sm font-bold text-gray-900">
                           {item.name}
@@ -196,30 +303,27 @@ const Cart = ({ isOpen, onClose }) => {
                       </div>
 
                       <button
-                        onClick={() =>
-                          handleRemoveProduct(item._id)
-                        }
-                        disabled={deletingItem !== null}
-                        className="h-fit rounded-md p-1 text-gray-400 transition duration-200 hover:scale-110 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed"
+                        onClick={() => handleRemoveProduct(item._id)}
+                        disabled={deletingItem !== null || isCheckingOut}
+                        className="h-fit rounded-md p-1 text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed"
                         aria-label="Remove product"
-                        title="Remove product"
                       >
                         <FiTrash2 size={17} />
                       </button>
+
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
 
-                      {/* Quantity Controls */}
+                      {/* Quantity */}
                       <div className="flex items-center overflow-hidden rounded-md border border-gray-200">
 
                         <button
                           onClick={() =>
                             dispatch(decreaseQuantity(item._id))
                           }
-                          disabled={item.quantity <= 1}
-                          className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100 disabled:opacity-40"
-                          aria-label="Decrease quantity"
+                          disabled={item.quantity <= 1 || isCheckingOut}
+                          className="flex h-8 w-8 items-center justify-center hover:bg-gray-100 disabled:opacity-40"
                         >
                           <FiMinus size={12} />
                         </button>
@@ -232,19 +336,20 @@ const Cart = ({ isOpen, onClose }) => {
                           onClick={() =>
                             dispatch(increaseQuantity(item._id))
                           }
-                          className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100"
-                          aria-label="Increase quantity"
+                          disabled={isCheckingOut}
+                          className="flex h-8 w-8 items-center justify-center hover:bg-gray-100 disabled:opacity-40"
                         >
                           <FiPlus size={12} />
                         </button>
+
                       </div>
 
-                      {/* Product Total */}
                       <p className="text-sm font-bold text-gray-900">
                         {formatPrice(
                           Number(item.price || 0) * item.quantity
                         )}
                       </p>
+
                     </div>
                   </div>
                 </div>
@@ -253,22 +358,25 @@ const Cart = ({ isOpen, onClose }) => {
               {/* Clear Cart */}
               <button
                 onClick={() => dispatch(clearCart())}
-                className="flex items-center gap-2 text-sm font-medium text-red-500 transition hover:text-red-700"
+                disabled={isCheckingOut}
+                className="flex items-center gap-2 text-sm font-medium text-red-500 transition hover:text-red-700 disabled:opacity-50"
               >
                 <FiTrash2 size={15} />
                 Clear Cart
               </button>
+
             </div>
           )}
+
         </div>
 
         {/* Footer */}
         {cartItems.length > 0 && (
+
           <div className="border-t border-gray-200 bg-white px-5 py-5">
 
             <div className="mb-4 space-y-3">
 
-              {/* Subtotal */}
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Subtotal</span>
 
@@ -277,7 +385,6 @@ const Cart = ({ isOpen, onClose }) => {
                 </span>
               </div>
 
-              {/* Shipping */}
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Shipping</span>
 
@@ -286,7 +393,6 @@ const Cart = ({ isOpen, onClose }) => {
                 </span>
               </div>
 
-              {/* Total */}
               <div className="flex justify-between border-t border-gray-100 pt-3">
                 <span className="font-bold text-gray-900">
                   Total
@@ -296,22 +402,28 @@ const Cart = ({ isOpen, onClose }) => {
                   {formatPrice(total)}
                 </span>
               </div>
+
             </div>
 
-            {/* Checkout */}
-            <Link
-              to="/checkout"
-              onClick={onClose}
-              className="flex w-full items-center justify-center rounded-lg bg-black py-4 text-sm font-semibold text-white transition hover:bg-gray-800"
+            {/* Checkout Button */}
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={isCheckingOut}
+              className="flex w-full items-center justify-center rounded-lg bg-black py-4 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Proceed to Checkout
-            </Link>
+              {isCheckingOut
+                ? 'Preparing Your Order...'
+                : 'Proceed to Checkout'}
+            </button>
 
             <p className="mt-3 text-center text-xs text-gray-400">
               Shipping charges included in total
             </p>
+
           </div>
         )}
+
       </div>
     </>
   )
