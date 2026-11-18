@@ -36,9 +36,8 @@ const luckySpinSchema = new mongoose.Schema(
 
     couponCode: {
       type: String,
-      unique: true,
-      sparse: true,
-      default: null
+      trim: true,
+      default: undefined
     },
 
     status: {
@@ -64,6 +63,17 @@ const luckySpinSchema = new mongoose.Schema(
   },
   {
     timestamps: true
+  }
+)
+
+// Unique coupon codes; null or missing codes are ignored
+luckySpinSchema.index(
+  { couponCode: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      couponCode: { $type: 'string', $gt: '' }
+    }
   }
 )
 
