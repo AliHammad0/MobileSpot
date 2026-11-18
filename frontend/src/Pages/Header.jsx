@@ -17,6 +17,8 @@ import {
 import { useSelector } from 'react-redux'
 import Cart from './Cart'
 
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
+
 const brands = [
   { name: 'Apple', icon: '🍎' },
   { name: 'Samsung', icon: '📱' },
@@ -31,7 +33,9 @@ const brands = [
   { name: 'Nothing', icon: '📱' }
 ]
 
-const SearchAnimation = ({ query }) => {
+const SearchAnimation = ({ query, product, searched }) => {
+  const productImage = product?.images?.[0]
+
   return (
     <div className="absolute left-0 right-0 top-full z-[100] mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xl">
       <style>{`
@@ -47,9 +51,15 @@ const SearchAnimation = ({ query }) => {
           50% { transform: rotate(35deg); }
         }
 
-        @keyframes shelfPhone {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
+        @keyframes productReveal {
+          0% {
+            opacity: 0;
+            transform: translateY(12px) scale(.85);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
 
         @keyframes searchingDots {
@@ -71,8 +81,8 @@ const SearchAnimation = ({ query }) => {
           animation: salesmanLook .9s ease-in-out infinite;
         }
 
-        .shelf-phone {
-          animation: shelfPhone .8s ease-in-out infinite;
+        .product-reveal {
+          animation: productReveal .5s ease-out both;
         }
 
         .search-dot {
@@ -89,7 +99,7 @@ const SearchAnimation = ({ query }) => {
         @media (prefers-reduced-motion: reduce) {
           .salesman-walk,
           .salesman-look,
-          .shelf-phone,
+          .product-reveal,
           .search-dot,
           .search-progress {
             animation: none !important;
@@ -121,40 +131,35 @@ const SearchAnimation = ({ query }) => {
           {query}
         </p>
 
-        {/* Shop shelf animation */}
-        <div className="relative mt-3 h-36 overflow-hidden rounded-xl bg-[#e8e0d2]">
+        {/* Shop shelf with actual database product image */}
+        <div className="relative mt-3 h-40 overflow-hidden rounded-xl bg-[#e8e0d2]">
 
           <div className="absolute left-3 right-3 top-5 h-1.5 rounded-full bg-[#b8aa96]" />
-          <div className="absolute left-3 right-3 top-[76px] h-1.5 rounded-full bg-[#b8aa96]" />
-          <div className="absolute bottom-4 left-3 right-3 h-1.5 rounded-full bg-[#b8aa96]" />
+          <div className="absolute left-3 right-3 bottom-5 h-1.5 rounded-full bg-[#b8aa96]" />
 
-          {/* Upper shelf phones */}
-          <div className="absolute left-5 top-7 flex items-end gap-3">
-            {[0, 1, 2, 3, 4].map((phone) => (
-              <div
-                key={phone}
-                className="shelf-phone h-10 w-5 rounded-md border-2 border-gray-500 bg-gray-800"
-                style={{ animationDelay: `${phone * 0.12}s` }}
-              >
-                <div className="mx-auto mt-1 h-1 w-2 rounded-full bg-gray-400" />
-              </div>
-            ))}
-          </div>
+          {/* Product image from database */}
+          <div className="absolute left-1/2 top-7 z-10 flex h-[100px] w-[90px] -translate-x-1/2 items-center justify-center rounded-xl border border-white bg-white p-2 shadow-lg">
 
-          {/* Lower shelf phones */}
-          <div className="absolute bottom-6 left-5 flex items-end gap-3">
-            {[0, 1, 2, 3, 4, 5].map((phone) => (
-              <div
-                key={phone}
-                className="h-9 w-5 rounded-md border-2 border-gray-500 bg-gray-700"
-              >
-                <div className="mx-auto mt-1 h-1 w-2 rounded-full bg-gray-400" />
+            {productImage ? (
+              <img
+                key={product._id || productImage}
+                src={productImage}
+                alt={product.name || query}
+                className="product-reveal h-full w-full object-contain"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-gray-400">
+                <FiSmartphone size={35} />
+                <span className="text-[9px] font-semibold">
+                  {searched ? 'Not Found' : 'Searching'}
+                </span>
               </div>
-            ))}
+            )}
+
           </div>
 
           {/* Salesman */}
-          <div className="salesman-walk absolute bottom-4 right-5 z-10 flex flex-col items-center">
+          <div className="salesman-walk absolute bottom-5 right-5 z-20 flex flex-col items-center">
 
             <div className="relative mb-1 h-7 w-7 rounded-full border border-[#c28b61] bg-[#d9a47d]">
               <div className="absolute left-1.5 top-2 h-1 w-1 rounded-full bg-black" />
@@ -176,17 +181,46 @@ const SearchAnimation = ({ query }) => {
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
-          <p className="text-xs font-bold text-gray-700">
-            Salesman shelf par phone dhoond raha hai
-          </p>
+        {/* Search result status */}
+        <div className="mt-3 flex min-h-8 items-center gap-2">
 
-          <div className="ml-auto flex gap-1">
-            <span className="search-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
-            <span className="search-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
-            <span className="search-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
-          </div>
+          {product ? (
+            <>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-100 text-green-700">
+                <FiCheck size={13} />
+              </span>
+
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold text-green-700">
+                  Boss, mil gaya!
+                </p>
+                <p className="truncate text-[10px] text-gray-500">
+                  {product.name} {product.model ? `- ${product.model}` : ''}
+                </p>
+              </div>
+            </>
+          ) : searched ? (
+            <>
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              <p className="text-xs font-bold text-red-600">
+                Boss, yeh phone hamare paas nahi hai
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+              <p className="text-xs font-bold text-gray-700">
+                Salesman phone dhoond raha hai
+              </p>
+
+              <div className="ml-auto flex gap-1">
+                <span className="search-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
+                <span className="search-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
+                <span className="search-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
+              </div>
+            </>
+          )}
+
         </div>
 
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-200">
@@ -202,6 +236,8 @@ const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
   const [showSearchAnimation, setShowSearchAnimation] = useState(false)
+  const [matchedProduct, setMatchedProduct] = useState(null)
+  const [searchCompleted, setSearchCompleted] = useState(false)
 
   const navigate = useNavigate()
 
@@ -226,29 +262,69 @@ const Header = () => {
     0
   )
 
-  // Start 3-second animation after typing
+  // Fetch matching database product and run 3-second animation
   useEffect(() => {
     const query = search.trim()
 
     if (!query) {
       setShowSearchAnimation(false)
+      setMatchedProduct(null)
+      setSearchCompleted(false)
       return
     }
 
-    setShowSearchAnimation(true)
+    const controller = new AbortController()
 
-    const timer = setTimeout(() => {
+    setShowSearchAnimation(true)
+    setMatchedProduct(null)
+    setSearchCompleted(false)
+
+    // Fetch matching product from database
+    const fetchTimer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/search?q=${encodeURIComponent(query)}`,
+          { signal: controller.signal }
+        )
+
+        const data = await response.json()
+
+        if (!response.ok || data.ok === false) {
+          throw new Error(data.message || 'Search failed')
+        }
+
+        const products = Array.isArray(data.products)
+          ? data.products
+          : []
+
+        setMatchedProduct(products[0] || null)
+        setSearchCompleted(true)
+
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error('Header product search error:', error)
+          setMatchedProduct(null)
+          setSearchCompleted(true)
+        }
+      }
+    }, 250)
+
+    // Navigate after 3 seconds
+    const navigationTimer = setTimeout(() => {
       setShowSearchAnimation(false)
       navigate(`/search?q=${encodeURIComponent(query)}`)
     }, 3000)
 
-    return () => clearTimeout(timer)
+    return () => {
+      clearTimeout(fetchTimer)
+      clearTimeout(navigationTimer)
+      controller.abort()
+    }
   }, [search, navigate])
 
   const handleSearch = (e) => {
     e.preventDefault()
 
-    // Animation timer will automatically navigate after 3 seconds.
     if (!search.trim()) return
   }
 
@@ -283,7 +359,7 @@ const Header = () => {
               </span>
             </Link>
 
-            {/* Desktop search with animation directly below */}
+            {/* Desktop search */}
             <div className="relative hidden max-w-xl flex-1 md:block">
               <form
                 onSubmit={handleSearch}
@@ -308,7 +384,11 @@ const Header = () => {
               </form>
 
               {showSearchAnimation && search.trim() && (
-                <SearchAnimation query={search.trim()} />
+                <SearchAnimation
+                  query={search.trim()}
+                  product={matchedProduct}
+                  searched={searchCompleted}
+                />
               )}
             </div>
 
@@ -408,7 +488,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile search with animation directly below */}
+        {/* Mobile search */}
         <div className="px-4 py-3 md:hidden">
           <div className="relative">
             <form
@@ -434,7 +514,11 @@ const Header = () => {
             </form>
 
             {showSearchAnimation && search.trim() && (
-              <SearchAnimation query={search.trim()} />
+              <SearchAnimation
+                query={search.trim()}
+                product={matchedProduct}
+                searched={searchCompleted}
+              />
             )}
           </div>
         </div>
