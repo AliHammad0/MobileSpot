@@ -70,7 +70,7 @@ const Product = () => {
     // Open selected product after animation
     navigationTimer.current = setTimeout(() => {
       window.location.assign(`/product/${product._id}`)
-    }, 4200)
+    }, 9200)
   }
 
   // Cleanup Timer
