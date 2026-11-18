@@ -3,7 +3,6 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
-  FiShoppingBag,
   FiTrash2,
   FiPlus,
   FiMinus,
@@ -56,6 +55,7 @@ const Cart = ({ isOpen, onClose }) => {
     }, 350)
   }
 
+  // Close Cart With Escape Key
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape') onClose?.()
@@ -68,6 +68,7 @@ const Cart = ({ isOpen, onClose }) => {
     }
   }, [onClose])
 
+  // Prevent Background Scrolling
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -92,7 +93,7 @@ const Cart = ({ isOpen, onClose }) => {
         }`}
       />
 
-      {/* Cart Drawer - Right Side */}
+      {/* Cart Drawer */}
       <div
         className={`fixed right-0 top-0 z-[101] flex h-full w-full max-w-[430px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
           isOpen
@@ -100,7 +101,6 @@ const Cart = ({ isOpen, onClose }) => {
             : 'translate-x-full'
         }`}
       >
-
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
           <div>
@@ -127,10 +127,13 @@ const Cart = ({ isOpen, onClose }) => {
 
           {cartItems.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center text-center">
-              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#f0ede7]">
-                <FiShoppingBag
-                  size={35}
-                  className="text-gray-700"
+
+              {/* Delivery Rider Image */}
+              <div className="mb-4 flex w-full items-center justify-center">
+                <img
+                  src="/delivery-rider.png"
+                  alt="The Shoe Spot delivery rider"
+                  className="h-52 w-full object-contain"
                 />
               </div>
 
@@ -138,15 +141,16 @@ const Cart = ({ isOpen, onClose }) => {
                 Your Cart is Empty
               </h3>
 
-              <p className="mt-2 max-w-xs text-sm text-gray-500">
+              <p className="mt-2 max-w-xs text-sm leading-6 text-gray-500">
                 You haven't added any products to your cart yet.
+                Explore our collection and find your perfect pair.
               </p>
 
               <button
                 onClick={onClose}
                 className="mt-6 flex items-center gap-2 rounded-lg bg-black px-6 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
               >
-                <FiShoppingCart />
+                <FiShoppingCart size={17} />
                 Continue Shopping
               </button>
             </div>
@@ -163,7 +167,7 @@ const Cart = ({ isOpen, onClose }) => {
                   }`}
                 >
 
-                  {/* Image */}
+                  {/* Product Image */}
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f7f6f3]">
                     <img
                       src={
@@ -177,7 +181,7 @@ const Cart = ({ isOpen, onClose }) => {
                     />
                   </div>
 
-                  {/* Details */}
+                  {/* Product Details */}
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
 
                     <div className="flex justify-between gap-2">
@@ -206,14 +210,16 @@ const Cart = ({ isOpen, onClose }) => {
 
                     <div className="flex items-center justify-between gap-2">
 
-                      {/* Quantity */}
+                      {/* Quantity Controls */}
                       <div className="flex items-center overflow-hidden rounded-md border border-gray-200">
+
                         <button
                           onClick={() =>
                             dispatch(decreaseQuantity(item._id))
                           }
                           disabled={item.quantity <= 1}
-                          className="flex h-8 w-8 items-center justify-center hover:bg-gray-100 disabled:opacity-40"
+                          className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100 disabled:opacity-40"
+                          aria-label="Decrease quantity"
                         >
                           <FiMinus size={12} />
                         </button>
@@ -226,12 +232,14 @@ const Cart = ({ isOpen, onClose }) => {
                           onClick={() =>
                             dispatch(increaseQuantity(item._id))
                           }
-                          className="flex h-8 w-8 items-center justify-center hover:bg-gray-100"
+                          className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100"
+                          aria-label="Increase quantity"
                         >
                           <FiPlus size={12} />
                         </button>
                       </div>
 
+                      {/* Product Total */}
                       <p className="text-sm font-bold text-gray-900">
                         {formatPrice(
                           Number(item.price || 0) * item.quantity
@@ -242,6 +250,7 @@ const Cart = ({ isOpen, onClose }) => {
                 </div>
               ))}
 
+              {/* Clear Cart */}
               <button
                 onClick={() => dispatch(clearCart())}
                 className="flex items-center gap-2 text-sm font-medium text-red-500 transition hover:text-red-700"
@@ -258,20 +267,26 @@ const Cart = ({ isOpen, onClose }) => {
           <div className="border-t border-gray-200 bg-white px-5 py-5">
 
             <div className="mb-4 space-y-3">
+
+              {/* Subtotal */}
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Subtotal</span>
+
                 <span className="font-semibold text-gray-900">
                   {formatPrice(subtotal)}
                 </span>
               </div>
 
+              {/* Shipping */}
               <div className="flex justify-between text-sm text-gray-500">
                 <span>Shipping</span>
+
                 <span className="font-semibold text-gray-900">
                   {formatPrice(shipping)}
                 </span>
               </div>
 
+              {/* Total */}
               <div className="flex justify-between border-t border-gray-100 pt-3">
                 <span className="font-bold text-gray-900">
                   Total
@@ -283,6 +298,7 @@ const Cart = ({ isOpen, onClose }) => {
               </div>
             </div>
 
+            {/* Checkout */}
             <Link
               to="/checkout"
               onClick={onClose}
