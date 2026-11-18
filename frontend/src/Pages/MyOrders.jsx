@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+
 import {
   FiPackage,
   FiTruck,
@@ -41,6 +42,7 @@ const MyOrders = () => {
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [actionLoading, setActionLoading] = useState('')
 
   const fetchOrders = async () => {
     try {
@@ -68,6 +70,7 @@ const MyOrders = () => {
     if (!confirmCancel) return
 
     try {
+      setActionLoading(orderId)
       await cancelMyOrder(orderId)
 
       setOrders((prev) =>
@@ -79,6 +82,8 @@ const MyOrders = () => {
       )
     } catch (err) {
       alert(err.message || 'Unable to cancel order')
+    } finally {
+      setActionLoading('')
     }
   }
 
@@ -90,6 +95,7 @@ const MyOrders = () => {
     if (!confirmDelete) return
 
     try {
+      setActionLoading(orderId)
       await deleteMyOrder(orderId)
 
       setOrders((prev) =>
@@ -97,6 +103,8 @@ const MyOrders = () => {
       )
     } catch (err) {
       alert(err.message || 'Unable to delete order')
+    } finally {
+      setActionLoading('')
     }
   }
 
@@ -120,268 +128,19 @@ const MyOrders = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#faf9f6] flex flex-col items-center justify-center overflow-hidden">
-        <div className="text-6xl animate-bounce">✈️</div>
-
-        <h2 className="mt-5 text-xl font-bold tracking-widest text-gray-800">
-          PREPARING YOUR ORDERS
-        </h2>
-
-        <p className="mt-2 text-sm text-gray-500">
-          Getting everything ready for you...
-        </p>
+      <div className="min-h-screen bg-[#faf9f6] flex items-center justify-center font-[Arial]">
+        <div className="text-center">
+          <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">
+            Loading your orders...
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#faf9f6] px-4 py-10 md:px-8">
-
-      <style>{`
-        .flying-plane {
-          position: absolute;
-          top: 22px;
-          left: -70px;
-          font-size: 32px;
-          animation: planeFlight 13s linear infinite;
-          z-index: 2;
-        }
-
-        @keyframes planeFlight {
-          0% { left: -70px; transform: translateY(10px) rotate(-5deg); }
-          45% { transform: translateY(-22px) rotate(2deg); }
-          100% { left: 110%; transform: translateY(-5px) rotate(-5deg); }
-        }
-
-        .flight-path {
-          position: absolute;
-          top: 48px;
-          left: 0;
-          width: 100%;
-          border-top: 2px dashed #d6c7a4;
-          opacity: .6;
-        }
-
-        .cloud {
-          position: absolute;
-          font-size: 30px;
-          opacity: .55;
-          animation: cloudMove 22s linear infinite;
-        }
-
-        .cloud-one { top: 8px; left: 20%; }
-        .cloud-two { top: 45px; left: 65%; animation-delay: -10s; }
-
-        @keyframes cloudMove {
-          0% { transform: translateX(-20px); }
-          50% { transform: translateX(35px); }
-          100% { transform: translateX(-20px); }
-        }
-
-        .order-card {
-          animation: orderAppear .65s ease both;
-          transition: transform .35s ease, box-shadow .35s ease;
-        }
-
-        .order-card:hover {
-          transform: translateY(-5px);
-          box-shadow: 0 18px 45px rgba(0,0,0,.09);
-        }
-
-        @keyframes orderAppear {
-          from { opacity: 0; transform: translateY(25px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .status-float {
-          animation: statusFloat 3s ease-in-out infinite;
-        }
-
-        @keyframes statusFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-
-        /* VIP MONEY ORBIT */
-
-        .vip-order {
-          position: relative;
-          overflow: hidden;
-          border: 1.5px solid #d6ad50 !important;
-          background: linear-gradient(135deg, #fffdf4, #fff9e7, #fff);
-          box-shadow: 0 8px 35px rgba(190, 145, 45, .13);
-        }
-
-        .vip-order:hover {
-          box-shadow: 0 15px 50px rgba(190, 145, 45, .25);
-        }
-
-        .vip-top-line {
-          height: 4px;
-          background: linear-gradient(
-            90deg,
-            #9b6b16,
-            #ffe7a0,
-            #bd8b27,
-            #fff0b8,
-            #9b6b16
-          );
-          background-size: 200% 100%;
-          animation: goldLine 3s linear infinite;
-        }
-
-        @keyframes goldLine {
-          from { background-position: 0 0; }
-          to { background-position: 200% 0; }
-        }
-
-        .vip-shine {
-          position: absolute;
-          top: 0;
-          left: -120%;
-          width: 65%;
-          height: 100%;
-          pointer-events: none;
-          background: linear-gradient(
-            110deg,
-            transparent,
-            rgba(255, 220, 130, .16),
-            transparent
-          );
-          animation: vipShine 5s ease-in-out infinite;
-        }
-
-        @keyframes vipShine {
-          0%, 55% { left: -120%; }
-          100% { left: 150%; }
-        }
-
-        .money-stage {
-          position: relative;
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 230px;
-          min-height: 105px;
-          isolation: isolate;
-        }
-
-        .money-ring {
-          position: absolute;
-          width: 190px;
-          height: 75px;
-          border: 2px solid rgba(194, 145, 39, .55);
-          border-radius: 50%;
-          transform: rotate(-12deg);
-          animation: ringOrbit 5s linear infinite;
-          z-index: -1;
-        }
-
-        .money-ring-two {
-          position: absolute;
-          width: 210px;
-          height: 88px;
-          border: 1px dashed rgba(194, 145, 39, .4);
-          border-radius: 50%;
-          transform: rotate(18deg);
-          animation: ringOrbit 8s linear infinite reverse;
-          z-index: -1;
-        }
-
-        @keyframes ringOrbit {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-
-        .orbit-coin {
-          position: absolute;
-          font-size: 22px;
-          filter: drop-shadow(0 3px 3px rgba(120, 80, 10, .2));
-          animation: coinOrbit 4s ease-in-out infinite;
-        }
-
-        .coin-one { top: 0; left: 12px; }
-        .coin-two { bottom: 2px; right: 15px; animation-delay: -1.3s; }
-        .coin-three { top: 5px; right: 18px; animation-delay: -2.5s; }
-
-        @keyframes coinOrbit {
-          0%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-          50% { transform: translateY(-13px) rotate(25deg) scale(1.15); }
-        }
-
-        .vip-price {
-          font-size: 25px;
-          font-weight: 900;
-          letter-spacing: -1px;
-          background: linear-gradient(
-            100deg,
-            #80550b,
-            #d7a83f,
-            #8d6417,
-            #f2d47e,
-            #80550b
-          );
-          background-size: 250% auto;
-          -webkit-background-clip: text;
-          background-clip: text;
-          color: transparent;
-          animation: priceGold 4s linear infinite;
-          filter: drop-shadow(0 2px 5px rgba(170, 125, 25, .16));
-          position: relative;
-          z-index: 1;
-        }
-
-        @keyframes priceGold {
-          to { background-position: 250% center; }
-        }
-
-        .vip-sparkle {
-          position: absolute;
-          color: #c39127;
-          animation: sparkle 2s ease-in-out infinite;
-        }
-
-        .sparkle-one { top: 5px; left: 5px; }
-        .sparkle-two { bottom: 8px; right: 5px; animation-delay: .7s; }
-        .sparkle-three { top: 0; right: 35px; animation-delay: 1.2s; }
-
-        @keyframes sparkle {
-          0%, 100% { opacity: .25; transform: scale(.7) rotate(0deg); }
-          50% { opacity: 1; transform: scale(1.4) rotate(90deg); }
-        }
-
-        .vip-label {
-          background: linear-gradient(110deg, #8a621a, #e6c36c, #946918);
-          color: white;
-          box-shadow: 0 4px 14px rgba(150, 105, 25, .22);
-        }
-
-        .vip-crown {
-          display: inline-block;
-          animation: crownFloat 2.2s ease-in-out infinite;
-        }
-
-        @keyframes crownFloat {
-          0%, 100% { transform: translateY(0) rotate(-7deg); }
-          50% { transform: translateY(-5px) rotate(7deg); }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          *, *::before, *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
-            transition-duration: .01ms !important;
-          }
-        }
-      `}</style>
-
-      {/* AIRPLANE ANIMATION */}
-      <div className="relative h-20 max-w-7xl mx-auto mb-5 overflow-hidden rounded-2xl">
-        <div className="flight-path"></div>
-        <span className="cloud cloud-one">☁️</span>
-        <span className="cloud cloud-two">☁️</span>
-        <span className="flying-plane">✈️</span>
-      </div>
+    <div className="min-h-screen bg-[#faf9f6] px-4 py-10 md:px-8 font-[Arial]">
 
       {/* HEADER */}
       <div className="max-w-7xl mx-auto mb-9 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -404,7 +163,7 @@ const MyOrders = () => {
           disabled={loading}
           className="flex items-center justify-center gap-2 px-5 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition disabled:opacity-50"
         >
-          <FiRefreshCw />
+          <FiRefreshCw size={17} />
           Refresh Orders
         </button>
       </div>
@@ -422,18 +181,20 @@ const MyOrders = () => {
           { title: 'Delivered', value: deliveredOrders, icon: FiCheckCircle },
           { title: 'In Progress', value: pendingOrders, icon: FiTruck },
           { title: 'Cancelled', value: cancelledOrders, icon: FiXCircle }
-        ].map((item, index) => {
+        ].map((item) => {
           const Icon = item.icon
 
           return (
             <div
               key={item.title}
-              style={{ animationDelay: `${index * 100}ms` }}
-              className="order-card bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
+              className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-500">{item.title}</p>
+                  <p className="text-sm text-gray-500">
+                    {item.title}
+                  </p>
+
                   <h2 className="text-3xl font-bold text-gray-900 mt-2">
                     {item.value}
                   </h2>
@@ -452,7 +213,9 @@ const MyOrders = () => {
       <div className="max-w-7xl mx-auto space-y-7">
         {orders.length === 0 ? (
           <div className="bg-white rounded-2xl p-12 text-center border border-gray-100">
-            <div className="text-5xl mb-4">📦</div>
+            <div className="w-16 h-16 rounded-full bg-[#f5f1e8] flex items-center justify-center mx-auto mb-4">
+              <FiPackage size={30} className="text-[#9a7a3d]" />
+            </div>
 
             <h2 className="text-xl font-bold text-gray-800">
               No Orders Found
@@ -461,25 +224,35 @@ const MyOrders = () => {
             <p className="text-gray-500 mt-2">
               Your orders will appear here after your purchase.
             </p>
+
+            <Link
+              to="/mobiles"
+              className="inline-block mt-5 px-6 py-3 bg-black text-white rounded-xl text-sm font-semibold hover:bg-gray-800 transition"
+            >
+              Shop Now
+            </Link>
           </div>
         ) : (
-          orders.map((order, index) => {
+          orders.map((order) => {
             const status = order.orderStatus || 'Pending'
             const Icon = StatusIcon[status] || FiPackage
             const isVIP = Number(order.totalPrice || 0) >= VIP_LIMIT
+            const isProcessing = actionLoading === order._id
 
             return (
               <div
                 key={order._id}
-                style={{ animationDelay: `${index * 100}ms` }}
-                className={`order-card rounded-2xl border bg-white ${
-                  isVIP ? 'vip-order' : 'border-gray-100 shadow-sm'
+                className={`rounded-2xl border bg-white overflow-hidden ${
+                  isVIP
+                    ? 'border-[#d6ad50] shadow-[0_8px_30px_rgba(190,145,45,0.10)]'
+                    : 'border-gray-100 shadow-sm'
                 }`}
               >
-                {isVIP && <div className="vip-top-line"></div>}
-                {isVIP && <div className="vip-shine"></div>}
+                {isVIP && (
+                  <div className="h-1 bg-gradient-to-r from-[#9b6b16] via-[#f2d47e] to-[#9b6b16]" />
+                )}
 
-                <div className="relative z-10 p-5 md:p-7">
+                <div className="p-5 md:p-7">
 
                   {/* ORDER HEADER */}
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
@@ -490,28 +263,31 @@ const MyOrders = () => {
                         </h2>
 
                         {isVIP && (
-                          <span className="vip-label px-3 py-1 rounded-full text-[10px] tracking-wider font-bold flex items-center gap-1">
-                            <span className="vip-crown">👑</span>
-                            VIP ORDER
+                          <span className="bg-[#f5edda] text-[#916b20] px-3 py-1 rounded-full text-[10px] tracking-wider font-bold flex items-center gap-1">
+                            👑 VIP ORDER
                           </span>
                         )}
                       </div>
 
                       <p className="text-sm text-gray-500">
-                        {new Date(order.createdAt).toLocaleDateString(
-                          'en-PK',
-                          {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          }
-                        )}
+                        {order.createdAt
+                          ? new Date(order.createdAt).toLocaleDateString(
+                              'en-PK',
+                              {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                              }
+                            )
+                          : 'Date unavailable'}
                       </p>
                     </div>
 
-                    <div className={`status-float inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold w-fit ${
-                      statusStyles[status] || 'bg-gray-100 text-gray-700'
-                    }`}>
+                    <div
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold w-fit ${
+                        statusStyles[status] || 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
                       <Icon size={16} />
                       {status}
                     </div>
@@ -552,9 +328,11 @@ const MyOrders = () => {
                   </div>
 
                   {/* ORDER FOOTER */}
-                  <div className={`mt-5 pt-5 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-5 ${
-                    isVIP ? 'border-[#ead9aa]' : 'border-gray-100'
-                  }`}>
+                  <div
+                    className={`mt-5 pt-5 border-t flex flex-col md:flex-row md:items-center md:justify-between gap-5 ${
+                      isVIP ? 'border-[#ead9aa]' : 'border-gray-100'
+                    }`}
+                  >
                     <div className="space-y-1">
                       <p className="text-sm text-gray-500">
                         Payment Method
@@ -568,30 +346,17 @@ const MyOrders = () => {
                     <div className="flex flex-col items-start md:items-end">
                       {isVIP ? (
                         <>
-                          <div className="flex items-center gap-2 text-[#9a7427] text-xs font-bold tracking-widest mb-1">
+                          <div className="flex items-center gap-2 text-[#9a7427] text-xs font-bold tracking-widest mb-2">
                             <FiStar />
                             PREMIUM PURCHASE
                             <FiStar />
                           </div>
 
-                          <div className="money-stage">
-                            <div className="money-ring"></div>
-                            <div className="money-ring-two"></div>
+                          <p className="text-2xl md:text-3xl font-black text-[#a77b25]">
+                            {formatPrice(order.totalPrice)}
+                          </p>
 
-                            <span className="orbit-coin coin-one">🪙</span>
-                            <span className="orbit-coin coin-two">💰</span>
-                            <span className="orbit-coin coin-three">🪙</span>
-
-                            <span className="vip-sparkle sparkle-one">✦</span>
-                            <span className="vip-sparkle sparkle-two">✧</span>
-                            <span className="vip-sparkle sparkle-three">✦</span>
-
-                            <span className="vip-price">
-                              {formatPrice(order.totalPrice)}
-                            </span>
-                          </div>
-
-                          <p className="text-[10px] tracking-[3px] font-bold text-[#a48645]">
+                          <p className="text-[10px] tracking-[3px] font-bold text-[#a48645] mt-2">
                             EXCLUSIVE VIP ORDER
                           </p>
                         </>
@@ -615,32 +380,30 @@ const MyOrders = () => {
                     {['Pending', 'Processing'].includes(status) && (
                       <button
                         onClick={() => handleCancelOrder(order._id)}
-                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition"
+                        disabled={isProcessing}
+                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition disabled:opacity-50"
                       >
-                        Cancel Order
+                        {isProcessing ? 'Please wait...' : 'Cancel Order'}
                       </button>
                     )}
 
                     {status === 'Cancelled' && (
                       <button
                         onClick={() => handleDeleteOrder(order._id)}
-                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition flex items-center gap-2"
+                        disabled={isProcessing}
+                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition flex items-center gap-2 disabled:opacity-50"
                       >
                         <FiTrash2 />
-                        Delete Order
+                        {isProcessing ? 'Please wait...' : 'Delete Order'}
                       </button>
                     )}
 
-                    {/* LUCKY SPIN */}
                     {status === 'Delivered' && (
                       <Link
                         to="/lucky-spin"
-                        className="group relative overflow-hidden px-6 py-3 rounded-xl bg-gradient-to-r from-[#9b6b16] via-[#d6ad50] to-[#9b6b16] bg-[length:200%_100%] text-white text-sm font-bold flex items-center gap-2 shadow-md hover:bg-right transition-all duration-500 hover:shadow-lg hover:-translate-y-1"
+                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#9b6b16] via-[#d6ad50] to-[#9b6b16] text-white text-sm font-bold flex items-center gap-2 hover:brightness-95 transition"
                       >
-                        <FiGift
-                          size={18}
-                          className="transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110"
-                        />
+                        <FiGift size={18} />
                         <span>Spin Now</span>
                       </Link>
                     )}
