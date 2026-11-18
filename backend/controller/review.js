@@ -61,12 +61,19 @@ export const getProductReviews = async (req, res) => {
 export const createProductReview = async (req, res) => {
   try {
     const { productId } = req.params
-    const { rating, comment } = req.body
+    const { orderId, rating, comment } = req.body
 
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       return res.status(400).json({
         ok: false,
         message: 'Invalid product ID.'
+      })
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(orderId)) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Valid order ID is required.'
       })
     }
 
@@ -106,38 +113,32 @@ export const createProductReview = async (req, res) => {
       })
     }
 
-    // Find a delivered order containing this product
-    const deliveredOrders = await Order.find({
+    // Find the exact delivered order
+    const deliveredOrder = await Order.findOne({
+      _id: orderId,
       user: req.user._id,
       orderStatus: 'Delivered',
       'orderItems.product': productId
-    }).sort({ deliveredAt: -1, updatedAt: -1 })
+    })
 
-    if (!deliveredOrders.length) {
+    if (!deliveredOrder) {
       return res.status(403).json({
         ok: false,
         message: 'You can review this product only after delivery.'
       })
     }
 
-    // Find an order that has not been reviewed yet
-    const reviewedOrders = await Review.distinct('order', {
+    // Check whether this order's product is already reviewed
+    const existingReview = await Review.findOne({
       product: productId,
-      user: req.user._id
+      user: req.user._id,
+      order: orderId
     })
 
-    const reviewedOrderIds = new Set(
-      reviewedOrders.map((id) => id.toString())
-    )
-
-    const availableOrder = deliveredOrders.find(
-      (order) => !reviewedOrderIds.has(order._id.toString())
-    )
-
-    if (!availableOrder) {
+    if (existingReview) {
       return res.status(409).json({
         ok: false,
-        message: 'You have already reviewed all delivered purchases of this product.'
+        message: 'You have already reviewed this purchase.'
       })
     }
 
@@ -145,7 +146,7 @@ export const createProductReview = async (req, res) => {
     const review = await Review.create({
       product: productId,
       user: req.user._id,
-      order: availableOrder._id,
+      order: orderId,
       rating: numericRating,
       comment: comment.trim()
     })
@@ -188,7 +189,7 @@ export const createProductReview = async (req, res) => {
     if (error.code === 11000) {
       return res.status(409).json({
         ok: false,
-        message: 'This purchase has already been reviewed.'
+        message: 'You have already reviewed this purchase.'
       })
     }
 
