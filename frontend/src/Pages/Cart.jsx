@@ -363,7 +363,7 @@ const Cart = ({ isOpen, onClose }) => {
                         item.image ||
                         item.imageUrl ||
                         item.images?.[0] ||
-                        'https://placehold.co/300x300?text=Product'
+                        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQTKV8iDhqMjEuVO4UwOCkoFzNwvubdZHD6-bWarnbSvg&s=10'
                       }
                       alt={item.name}
                       className="h-full w-full object-contain p-2"
