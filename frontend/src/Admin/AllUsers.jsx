@@ -10,7 +10,7 @@ const AllUsers = () => {
   const [deleting, setDeleting] = useState(null)
   const [error, setError] = useState('')
 
-  // Get authentication token
+  // Authentication Headers
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token')
 
@@ -24,13 +24,14 @@ const AllUsers = () => {
     }
   }
 
-  // Get all users
+  // Get All Users
   const fetchUsers = async () => {
     try {
       setLoading(true)
       setError('')
 
-      const response = await fetch(`${API_URL}/all`, {
+      // Correct endpoint: /api/v1/users
+      const response = await fetch(API_URL, {
         method: 'GET',
         headers: getAuthHeaders()
       })
@@ -53,7 +54,7 @@ const AllUsers = () => {
     fetchUsers()
   }, [])
 
-  // Delete user
+  // Delete User
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm(
       'Are you sure you want to delete this user?'
@@ -80,7 +81,7 @@ const AllUsers = () => {
         prevUsers.filter((user) => user._id !== id)
       )
 
-      alert(data.message || 'User deleted successfully')
+      alert(data.message || 'User deleted successfully!')
     } catch (error) {
       setError(error.message)
     } finally {
@@ -134,15 +135,8 @@ const AllUsers = () => {
 
       {/* Error */}
       {error && (
-        <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">
-          <span>{error}</span>
-
-          <button
-            onClick={() => setError('')}
-            className="font-semibold"
-          >
-            Close
-          </button>
+        <div className="mb-5 rounded-lg border border-red-100 bg-red-50 p-3 text-sm text-red-600">
+          {error}
         </div>
       )}
 
