@@ -1,7 +1,8 @@
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
+
 import {
   FiTrash2,
   FiPlus,
@@ -31,6 +32,7 @@ const Cart = ({ isOpen, onClose }) => {
   const checkoutTimer = useRef(null)
   const checkoutStarted = useRef(false)
 
+  // Price Calculation
   const subtotal = cartItems.reduce(
     (total, item) =>
       total + Number(item.price || 0) * item.quantity,
@@ -48,7 +50,7 @@ const Cart = ({ isOpen, onClose }) => {
   const formatPrice = (price) =>
     `Rs. ${Number(price).toLocaleString('en-PK')}`
 
-  // Remove Product Animation
+  // Remove Product
   const handleRemoveProduct = (productId) => {
     if (deletingItem || isCheckingOut) return
 
@@ -60,19 +62,21 @@ const Cart = ({ isOpen, onClose }) => {
     }, 350)
   }
 
-  // Navigate To Checkout
+  // Navigate After Animation
   const finishCheckout = () => {
     if (!checkoutStarted.current) return
+
+    checkoutStarted.current = false
 
     if (checkoutTimer.current) {
       clearTimeout(checkoutTimer.current)
       checkoutTimer.current = null
     }
 
-    checkoutStarted.current = false
-
     onClose?.()
-    navigate('/checkout')
+
+    // Open Checkout Page
+    navigate('/checkout', { replace: true })
   }
 
   // Start Delivery Animation
@@ -82,13 +86,13 @@ const Cart = ({ isOpen, onClose }) => {
     checkoutStarted.current = true
     setIsCheckingOut(true)
 
-    // Safety fallback if animation event does not fire
+    // Backup navigation if animation event fails
     checkoutTimer.current = setTimeout(() => {
       finishCheckout()
-    }, 4500)
+    }, 5000)
   }
 
-  // Close Cart With Escape Key
+  // Escape Key
   useEffect(() => {
     const handleEscape = (e) => {
       if (e.key === 'Escape' && !isCheckingOut) {
@@ -105,18 +109,15 @@ const Cart = ({ isOpen, onClose }) => {
 
   // Prevent Background Scrolling
   useEffect(() => {
-    if (isOpen || isCheckingOut) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow =
+      isOpen || isCheckingOut ? 'hidden' : ''
 
     return () => {
       document.body.style.overflow = ''
     }
   }, [isOpen, isCheckingOut])
 
-  // Cleanup Timer
+  // Cleanup
   useEffect(() => {
     return () => {
       if (checkoutTimer.current) {
@@ -128,12 +129,15 @@ const Cart = ({ isOpen, onClose }) => {
   return (
     <>
       <style>{`
+
+        /* DELIVERY RIDER ANIMATION */
+
         @keyframes riderRide {
           0% {
-            transform: translateX(-120%);
+            transform: translateX(-320px);
           }
 
-          28% {
+          32% {
             transform: translateX(32vw);
           }
 
@@ -142,43 +146,50 @@ const Cart = ({ isOpen, onClose }) => {
           }
 
           100% {
-            transform: translateX(calc(100vw + 120%));
+            transform: translateX(calc(100vw + 350px));
           }
         }
 
         @keyframes parcelPickup {
           0% {
-            opacity: 0;
-            transform: translate(0, 35px) scale(0.7);
-          }
-
-          20% {
             opacity: 1;
             transform: translate(0, 0) scale(1);
           }
 
-          38% {
+          60% {
             opacity: 1;
-            transform: translate(-15vw, -55px) scale(0.8);
-          }
-
-          50% {
-            opacity: 0;
-            transform: translate(-15vw, -55px) scale(0.5);
+            transform: translate(-15vw, -55px) scale(0.7);
           }
 
           100% {
             opacity: 0;
+            transform: translate(-15vw, -55px) scale(0.5);
           }
         }
 
-        @keyframes deliveryMessage {
-          0%, 15% {
-            opacity: 0;
-            transform: translateY(12px);
+        @keyframes wheelRotate {
+          to {
+            transform: rotate(1080deg);
+          }
+        }
+
+        @keyframes roadMove {
+          from {
+            background-position: 0 0;
           }
 
-          25%, 75% {
+          to {
+            background-position: -150px 0;
+          }
+        }
+
+        @keyframes messageAppear {
+          0%, 15% {
+            opacity: 0;
+            transform: translateY(15px);
+          }
+
+          30%, 80% {
             opacity: 1;
             transform: translateY(0);
           }
@@ -189,87 +200,189 @@ const Cart = ({ isOpen, onClose }) => {
           }
         }
 
-        .rider-animation {
-          animation: riderRide 3.6s cubic-bezier(.45,0,.55,1) forwards;
+        .rider-moving {
+          animation: riderRide 3.8s cubic-bezier(.45, 0, .55, 1) forwards;
           will-change: transform;
         }
 
-        .parcel-animation {
-          animation: parcelPickup 3.6s ease-in-out forwards;
-          will-change: transform, opacity;
+        .pickup-parcel {
+          animation: parcelPickup 0.8s ease-in-out 1.3s forwards;
+        }
+
+        .rider-wheel {
+          animation: wheelRotate 3.8s linear forwards;
         }
 
         .delivery-message {
-          animation: deliveryMessage 3.6s ease-in-out forwards;
+          animation: messageAppear 3.8s ease-in-out forwards;
+        }
+
+        .moving-road {
+          background-image: repeating-linear-gradient(
+            to right,
+            transparent 0px,
+            transparent 35px,
+            #9ca3af 35px,
+            #9ca3af 65px
+          );
+          background-size: 130px 3px;
+          animation: roadMove 0.5s linear infinite;
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .rider-animation,
-          .parcel-animation,
+          .rider-moving,
+          .rider-wheel,
+          .pickup-parcel,
           .delivery-message {
             animation-duration: 1.5s;
           }
+
+          .moving-road {
+            animation: none;
+          }
         }
+
       `}</style>
 
-      {/* Checkout Delivery Animation */}
+      {/* ================================= */}
+      {/* DELIVERY ANIMATION SCREEN */}
+      {/* ================================= */}
+
       {isCheckingOut && (
-        <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center overflow-hidden bg-white">
+        <div className="fixed inset-0 z-[300] flex flex-col items-center justify-center overflow-hidden bg-[#f7f6f3]">
 
           {/* Background */}
-          <div className="absolute inset-0 bg-gradient-to-b from-[#f8f7f4] via-white to-[#eeece6]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#f7f6f3] via-white to-[#eae8e2]" />
 
-          {/* Message */}
-          <div className="delivery-message relative z-10 mb-10 px-4 text-center">
+          {/* Animated Message */}
+          <div className="delivery-message relative z-20 px-5 text-center">
+
+            <div className="mb-3 text-4xl">
+              📦
+            </div>
+
             <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl">
               Your Order is on the Way!
             </h2>
 
             <p className="mt-3 text-sm text-gray-500">
-              Our delivery rider is picking up your order.
+              Our rider is collecting your package.
             </p>
+
           </div>
 
           {/* Delivery Scene */}
-          <div className="absolute bottom-[12%] h-[230px] w-full">
+          <div className="absolute bottom-[13%] h-[270px] w-full">
 
-            {/* Road */}
-            <div className="absolute bottom-5 left-0 h-[3px] w-full bg-gray-300">
-              <div className="absolute inset-0 border-t-2 border-dashed border-gray-400" />
-            </div>
-
-            {/* Parcel */}
-            <div className="parcel-animation absolute bottom-10 left-[52%] z-20 text-5xl">
+            {/* Parcel On Ground */}
+            <div className="pickup-parcel absolute bottom-[105px] left-[53%] z-10 text-5xl">
               📦
             </div>
 
-            {/* Delivery Rider */}
+            {/* Rider And Bike */}
             <div
-              className="rider-animation absolute bottom-7 left-0 z-10 flex items-end"
+              className="rider-moving absolute bottom-[20px] left-0 z-20 h-[220px] w-[270px]"
               onAnimationEnd={(e) => {
-                if (e.target === e.currentTarget) {
+                if (
+                  e.target === e.currentTarget &&
+                  e.animationName === 'riderRide'
+                ) {
                   finishCheckout()
                 }
               }}
             >
-              <img
-                src="/delivery-rider.png"
-                alt="Delivery rider carrying your order"
-                className="h-[190px] w-[280px] object-contain sm:h-[230px] sm:w-[340px]"
-              />
+
+              {/* BIKE */}
+
+              {/* Rear Wheel */}
+              <div className="rider-wheel absolute bottom-0 left-[17px] h-[67px] w-[67px] rounded-full border-[9px] border-gray-900 bg-gray-300">
+                <div className="absolute inset-[8px] rounded-full border-[3px] border-gray-600 bg-gray-200" />
+                <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gray-900" />
+              </div>
+
+              {/* Front Wheel */}
+              <div className="rider-wheel absolute bottom-0 right-[15px] h-[67px] w-[67px] rounded-full border-[9px] border-gray-900 bg-gray-300">
+                <div className="absolute inset-[8px] rounded-full border-[3px] border-gray-600 bg-gray-200" />
+                <div className="absolute left-1/2 top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gray-900" />
+              </div>
+
+              {/* Bike Body */}
+              <div className="absolute bottom-[40px] left-[55px] h-[15px] w-[150px] rotate-[-8deg] rounded-full bg-black" />
+
+              <div className="absolute bottom-[53px] left-[92px] h-[35px] w-[85px] -rotate-12 rounded-2xl bg-[#d4a373]" />
+
+              {/* Bike Seat */}
+              <div className="absolute bottom-[112px] left-[76px] h-[9px] w-[65px] -rotate-6 rounded-full bg-gray-900" />
+
+              {/* Handle */}
+              <div className="absolute bottom-[100px] right-[33px] h-[40px] w-[8px] rotate-[25deg] rounded-full bg-gray-800" />
+
+              {/* Headlight */}
+              <div className="absolute bottom-[72px] right-[4px] h-[20px] w-[22px] rounded-full border-2 border-gray-700 bg-yellow-300" />
+
+              {/* Parcel Rack */}
+              <div className="absolute bottom-[110px] left-[12px] h-[7px] w-[52px] rounded-full bg-gray-800" />
+
+              {/* RIDER */}
+
+              {/* Rider Leg */}
+              <div className="absolute bottom-[52px] left-[100px] h-[62px] w-[20px] rotate-[35deg] rounded-full bg-gray-900" />
+
+              {/* Rider Shoe */}
+              <div className="absolute bottom-[44px] left-[115px] h-[13px] w-[30px] rounded-full bg-black" />
+
+              {/* Rider Body */}
+              <div className="absolute bottom-[110px] left-[92px] h-[65px] w-[43px] -rotate-[20deg] rounded-t-2xl rounded-b-lg border border-gray-800 bg-[#d4a373]" />
+
+              {/* Rider Arm */}
+              <div className="absolute bottom-[118px] left-[125px] h-[12px] w-[50px] rotate-[20deg] rounded-full bg-[#d4a373]" />
+
+              {/* Rider Hand */}
+              <div className="absolute bottom-[125px] right-[45px] h-[13px] w-[13px] rounded-full bg-[#b77950]" />
+
+              {/* Rider Neck */}
+              <div className="absolute bottom-[166px] left-[112px] h-[16px] w-[18px] rounded-md bg-[#b77950]" />
+
+              {/* Rider Face */}
+              <div className="absolute bottom-[172px] left-[104px] h-[33px] w-[38px] rounded-[45%] bg-[#d4a373]" />
+
+              {/* Helmet */}
+              <div className="absolute bottom-[193px] left-[99px] h-[27px] w-[46px] rounded-t-full rounded-b-lg border-b-[5px] border-black bg-[#d4a373]" />
+
+              {/* Helmet Visor */}
+              <div className="absolute bottom-[189px] left-[131px] h-[8px] w-[21px] rounded-full bg-gray-900" />
+
+              {/* Rider Backpack */}
+              <div className="absolute bottom-[132px] left-[72px] h-[35px] w-[27px] rounded-lg border-2 border-gray-700 bg-[#d4a373]" />
+
             </div>
+
+            {/* Road */}
+            <div className="moving-road absolute bottom-[12px] left-0 h-[3px] w-full" />
+
+            {/* Road Shadow */}
+            <div className="absolute bottom-0 left-0 h-[12px] w-full bg-gray-200/50" />
+
           </div>
 
-          {/* Bottom Message */}
-          <div className="absolute bottom-8 text-center">
-            <p className="text-xs font-semibold tracking-[3px] text-gray-500">
+          {/* Brand */}
+          <div className="absolute bottom-7 text-center">
+            <p className="text-xs font-bold tracking-[4px] text-gray-700">
               THE SHOE SPOT
             </p>
+
+            <p className="mt-2 text-[10px] text-gray-400">
+              PREMIUM FOOTWEAR
+            </p>
           </div>
+
         </div>
       )}
 
-      {/* Overlay */}
+      {/* ================================= */}
+      {/* CART OVERLAY */}
+      {/* ================================= */}
+
       <div
         onClick={() => !isCheckingOut && onClose?.()}
         className={`fixed inset-0 z-[100] bg-black/50 transition-opacity duration-300 ${
@@ -279,7 +392,10 @@ const Cart = ({ isOpen, onClose }) => {
         }`}
       />
 
-      {/* Cart Drawer */}
+      {/* ================================= */}
+      {/* CART DRAWER */}
+      {/* ================================= */}
+
       <div
         className={`fixed right-0 top-0 z-[101] flex h-full w-full max-w-[430px] flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out ${
           isOpen && !isCheckingOut
@@ -303,26 +419,23 @@ const Cart = ({ isOpen, onClose }) => {
 
           <button
             onClick={onClose}
-            disabled={isCheckingOut}
             className="rounded-full bg-gray-100 p-2 text-gray-700 transition hover:bg-gray-200"
             aria-label="Close cart"
           >
             <FiX size={21} />
           </button>
+
         </div>
 
         {/* Cart Products */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
 
           {cartItems.length === 0 ? (
+
             <div className="flex h-full flex-col items-center justify-center text-center">
 
-              <div className="mb-4 flex w-full items-center justify-center">
-                <img
-                  src="/delivery-rider.png"
-                  alt="The Shoe Spot delivery rider"
-                  className="h-52 w-full object-contain"
-                />
+              <div className="mb-4 text-7xl">
+                🛍️
               </div>
 
               <h3 className="text-xl font-bold text-gray-900">
@@ -341,14 +454,18 @@ const Cart = ({ isOpen, onClose }) => {
                 <FiShoppingCart size={17} />
                 Continue Shopping
               </button>
+
             </div>
+
           ) : (
+
             <div className="space-y-5">
 
               {cartItems.map((item) => (
+
                 <div
                   key={item._id}
-                  className={`flex gap-4 border-b border-gray-100 pb-5 transition-all duration-300 ease-in-out ${
+                  className={`flex gap-4 border-b border-gray-100 pb-5 transition-all duration-300 ${
                     deletingItem === item._id
                       ? 'translate-x-12 scale-95 opacity-0'
                       : 'translate-x-0 scale-100 opacity-100'
@@ -363,11 +480,12 @@ const Cart = ({ isOpen, onClose }) => {
                         item.image ||
                         item.imageUrl ||
                         item.images?.[0] ||
-                        'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQTKV8iDhqMjEuVO4UwOCkoFzNwvubdZHD6-bWarnbSvg&s=10'
+                        'https://placehold.co/300x300?text=Product'
                       }
                       alt={item.name}
                       className="h-full w-full object-contain p-2"
                     />
+
                   </div>
 
                   {/* Product Details */}
@@ -387,23 +505,23 @@ const Cart = ({ isOpen, onClose }) => {
 
                       <button
                         onClick={() => handleRemoveProduct(item._id)}
-                        disabled={deletingItem !== null || isCheckingOut}
-                        className="h-fit rounded-md p-1 text-gray-400 transition duration-200 hover:scale-110 hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed"
+                        disabled={deletingItem !== null}
+                        className="h-fit rounded-md p-1 text-gray-400 transition hover:bg-red-50 hover:text-red-500 disabled:cursor-not-allowed"
                         aria-label="Remove product"
-                        title="Remove product"
                       >
                         <FiTrash2 size={17} />
                       </button>
+
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
 
-                      {/* Quantity Controls */}
+                      {/* Quantity */}
                       <div className="flex items-center overflow-hidden rounded-md border border-gray-200">
 
                         <button
                           onClick={() => dispatch(decreaseQuantity(item._id))}
-                          disabled={item.quantity <= 1 || isCheckingOut}
+                          disabled={item.quantity <= 1}
                           className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100 disabled:opacity-40"
                           aria-label="Decrease quantity"
                         >
@@ -416,12 +534,12 @@ const Cart = ({ isOpen, onClose }) => {
 
                         <button
                           onClick={() => dispatch(increaseQuantity(item._id))}
-                          disabled={isCheckingOut}
                           className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100"
                           aria-label="Increase quantity"
                         >
                           <FiPlus size={12} />
                         </button>
+
                       </div>
 
                       {/* Product Total */}
@@ -430,26 +548,33 @@ const Cart = ({ isOpen, onClose }) => {
                           Number(item.price || 0) * item.quantity
                         )}
                       </p>
+
                     </div>
+
                   </div>
+
                 </div>
+
               ))}
 
               {/* Clear Cart */}
               <button
                 onClick={() => dispatch(clearCart())}
-                disabled={isCheckingOut}
                 className="flex items-center gap-2 text-sm font-medium text-red-500 transition hover:text-red-700"
               >
                 <FiTrash2 size={15} />
                 Clear Cart
               </button>
+
             </div>
+
           )}
+
         </div>
 
         {/* Footer */}
         {cartItems.length > 0 && (
+
           <div className="border-t border-gray-200 bg-white px-5 py-5">
 
             <div className="mb-4 space-y-3">
@@ -482,14 +607,15 @@ const Cart = ({ isOpen, onClose }) => {
                   {formatPrice(total)}
                 </span>
               </div>
+
             </div>
 
-            {/* Checkout */}
+            {/* Checkout Button */}
             <button
               type="button"
               onClick={handleCheckout}
               disabled={isCheckingOut}
-              className="flex w-full items-center justify-center rounded-lg bg-black py-4 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex w-full items-center justify-center rounded-lg bg-black py-4 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Proceed to Checkout
             </button>
@@ -497,8 +623,11 @@ const Cart = ({ isOpen, onClose }) => {
             <p className="mt-3 text-center text-xs text-gray-400">
               Shipping charges included in total
             </p>
+
           </div>
+
         )}
+
       </div>
     </>
   )
