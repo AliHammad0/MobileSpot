@@ -17,6 +17,356 @@ import {
   connectChatSocket
 } from '../services/chatApi'
 
+// Customer Support Intro Animation
+const SupportIntroAnimation = () => {
+  return (
+    <div className="support-intro-overlay">
+      <style>{`
+        .support-intro-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 99999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          background: #f7f6f3;
+          font-family: Arial, sans-serif;
+          animation: supportOverlayOut .7s ease 3.6s forwards;
+        }
+
+        .support-intro-content {
+          width: min(100%, 420px);
+          text-align: center;
+          animation: supportContentIn .7s ease both;
+        }
+
+        .support-icon-scene {
+          position: relative;
+          width: 190px;
+          height: 190px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 22px;
+        }
+
+        .support-ring {
+          position: absolute;
+          width: 150px;
+          height: 150px;
+          border: 1px solid #d9c9a8;
+          border-radius: 50%;
+          animation: supportRing 2.5s ease-out infinite;
+        }
+
+        .support-ring.second {
+          animation-delay: 1.2s;
+        }
+
+        .support-main-icon {
+          position: relative;
+          z-index: 2;
+          width: 100px;
+          height: 100px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 30px;
+          color: #d6a43a;
+          background: #171717;
+          box-shadow: 0 18px 40px #17171725;
+          animation: supportFloat 2s ease-in-out infinite;
+        }
+
+        .support-small-icon {
+          position: absolute;
+          z-index: 3;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 45px;
+          height: 45px;
+          border-radius: 15px;
+          color: #171717;
+          background: white;
+          border: 1px solid #e8e3d9;
+          box-shadow: 0 8px 24px #17171712;
+          opacity: 0;
+        }
+
+        .support-small-icon.left {
+          top: 15px;
+          left: -3px;
+          animation: supportBubbleLeft .6s ease .8s forwards;
+        }
+
+        .support-small-icon.right {
+          right: -3px;
+          bottom: 17px;
+          color: #c18a25;
+          animation: supportBubbleRight .6s ease 1.5s forwards;
+        }
+
+        .support-chat-preview {
+          width: min(100%, 340px);
+          margin: 0 auto;
+          padding: 15px;
+          border: 1px solid #e8e4dc;
+          border-radius: 18px;
+          background: white;
+          box-shadow: 0 15px 45px #1717170d;
+          animation: supportPreviewIn .7s ease 1s both;
+        }
+
+        .support-preview-header {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid #f0eee9;
+          text-align: left;
+        }
+
+        .support-preview-avatar {
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 12px;
+          color: #d6a43a;
+          background: #171717;
+        }
+
+        .support-preview-name {
+          color: #171717;
+          font-size: 12px;
+          font-weight: 700;
+        }
+
+        .support-preview-status {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          margin-top: 4px;
+          color: #16834b;
+          font-size: 10px;
+        }
+
+        .support-preview-status span {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #16a34a;
+        }
+
+        .support-preview-messages {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          padding-top: 14px;
+        }
+
+        .support-preview-message {
+          width: 68%;
+          height: 27px;
+          border-radius: 12px;
+          background: #f1f0ed;
+          opacity: 0;
+          animation: supportMessageIn .5s ease forwards;
+        }
+
+        .support-preview-message.reply {
+          width: 58%;
+          align-self: flex-end;
+          background: #171717;
+          animation-delay: 2s;
+        }
+
+        .support-preview-message.question {
+          animation-delay: 1.6s;
+        }
+
+        .support-preview-message.last {
+          width: 75%;
+          animation-delay: 2.4s;
+        }
+
+        .support-intro-title {
+          margin-top: 24px;
+          color: #171717;
+          font-size: 23px;
+          font-weight: 800;
+          letter-spacing: -.6px;
+          animation: supportTextIn .6s ease 1.2s both;
+        }
+
+        .support-intro-description {
+          margin-top: 8px;
+          color: #77736d;
+          font-size: 13px;
+          animation: supportTextIn .6s ease 1.4s both;
+        }
+
+        .support-loader {
+          width: 105px;
+          height: 3px;
+          margin: 22px auto 0;
+          overflow: hidden;
+          border-radius: 10px;
+          background: #e5e2dc;
+        }
+
+        .support-loader span {
+          display: block;
+          width: 35%;
+          height: 100%;
+          border-radius: 10px;
+          background: #c58b22;
+          animation: supportLoader 1.6s ease-in-out infinite;
+        }
+
+        @keyframes supportContentIn {
+          from { opacity: 0; transform: translateY(20px) scale(.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes supportFloat {
+          0%, 100% { transform: translateY(0) rotate(-3deg); }
+          50% { transform: translateY(-8px) rotate(3deg); }
+        }
+
+        @keyframes supportRing {
+          0% { opacity: .7; transform: scale(.75); }
+          100% { opacity: 0; transform: scale(1.35); }
+        }
+
+        @keyframes supportBubbleLeft {
+          from { opacity: 0; transform: translate(-12px, 10px) scale(.7); }
+          to { opacity: 1; transform: translate(0, 0) scale(1); }
+        }
+
+        @keyframes supportBubbleRight {
+          from { opacity: 0; transform: translate(12px, -10px) scale(.7); }
+          to { opacity: 1; transform: translate(0, 0) scale(1); }
+        }
+
+        @keyframes supportPreviewIn {
+          from { opacity: 0; transform: translateY(18px) scale(.96); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes supportMessageIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes supportTextIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes supportLoader {
+          0% { transform: translateX(-110%); }
+          100% { transform: translateX(320%); }
+        }
+
+        @keyframes supportOverlayOut {
+          to {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .support-icon-scene {
+            transform: scale(.88);
+            margin-bottom: 5px;
+          }
+
+          .support-intro-title {
+            font-size: 21px;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .support-intro-overlay *,
+          .support-intro-overlay {
+            animation-duration: .01ms !important;
+            animation-delay: 0ms !important;
+          }
+        }
+      `}</style>
+
+      <div className="support-intro-content">
+
+        <div className="support-icon-scene">
+
+          <div className="support-ring" />
+          <div className="support-ring second" />
+
+          <div className="support-main-icon">
+            <FiHeadphones size={54} />
+          </div>
+
+          <div className="support-small-icon left">
+            <FiMessageCircle size={22} />
+          </div>
+
+          <div className="support-small-icon right">
+            <FiSend size={20} />
+          </div>
+
+        </div>
+
+        <div className="support-chat-preview">
+
+          <div className="support-preview-header">
+
+            <div className="support-preview-avatar">
+              <FiHeadphones size={20} />
+            </div>
+
+            <div>
+              <p className="support-preview-name">
+                MobileSpot Support
+              </p>
+
+              <p className="support-preview-status">
+                <span />
+                Here to help you
+              </p>
+            </div>
+
+          </div>
+
+          <div className="support-preview-messages">
+            <div className="support-preview-message question" />
+            <div className="support-preview-message reply" />
+            <div className="support-preview-message last" />
+          </div>
+
+        </div>
+
+        <h2 className="support-intro-title">
+          We're Here to Help!
+        </h2>
+
+        <p className="support-intro-description">
+          Connect with the MobileSpot support team.
+        </p>
+
+        <div className="support-loader">
+          <span />
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
 const SupportChat = () => {
   const [conversation, setConversation] = useState(null)
   const [messages, setMessages] = useState([])
@@ -25,6 +375,7 @@ const SupportChat = () => {
   const [sending, setSending] = useState(false)
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState('')
+  const [showIntro, setShowIntro] = useState(true)
 
   const socketRef = useRef(null)
   const bottomRef = useRef(null)
@@ -38,6 +389,17 @@ const SupportChat = () => {
   }
 
   const currentUserId = currentUser?._id || currentUser?.id
+
+  // Show animation every time page opens
+  useEffect(() => {
+    setShowIntro(true)
+
+    const timer = setTimeout(() => {
+      setShowIntro(false)
+    }, 4300)
+
+    return () => clearTimeout(timer)
+  }, [])
 
   // Load or create support conversation
   useEffect(() => {
@@ -104,8 +466,10 @@ const SupportChat = () => {
       })
 
       socket.on('new_message', (newMessage) => {
-        if (newMessage.conversation !== conversation._id &&
-            newMessage.conversation?._id !== conversation._id) {
+        if (
+          newMessage.conversation !== conversation._id &&
+          newMessage.conversation?._id !== conversation._id
+        ) {
           return
         }
 
@@ -128,6 +492,7 @@ const SupportChat = () => {
             ? errorMessage
             : 'Unable to send message.'
         )
+
         setSending(false)
       })
 
@@ -189,6 +554,8 @@ const SupportChat = () => {
   return (
     <div className="min-h-screen bg-[#f7f6f3] px-3 py-8 font-[Arial,sans-serif] sm:px-6">
 
+      {showIntro && <SupportIntroAnimation />}
+
       <div className="mx-auto max-w-5xl">
 
         {/* Back Button */}
@@ -249,6 +616,7 @@ const SupportChat = () => {
             {loading ? (
               <div className="flex h-full flex-col items-center justify-center">
                 <div className="h-9 w-9 animate-spin rounded-full border-4 border-amber-100 border-t-amber-600" />
+
                 <p className="mt-4 text-sm text-gray-500">
                   Loading your conversation...
                 </p>
@@ -256,9 +624,11 @@ const SupportChat = () => {
             ) : error && !conversation ? (
               <div className="flex h-full flex-col items-center justify-center text-center">
                 <FiMessageCircle size={40} className="text-gray-300" />
+
                 <p className="mt-4 text-sm font-semibold text-gray-700">
                   Unable to open chat
                 </p>
+
                 <p className="mt-2 text-sm text-red-500">
                   {error}
                 </p>
@@ -307,9 +677,7 @@ const SupportChat = () => {
                             {item.message}
                           </p>
 
-                          <p className={`mt-2 text-right text-[10px] ${
-                            isMine ? 'text-gray-400' : 'text-gray-400'
-                          }`}>
+                          <p className="mt-2 text-right text-[10px] text-gray-400">
                             {formatTime(item.createdAt)}
                           </p>
 
@@ -324,6 +692,7 @@ const SupportChat = () => {
                         size={32}
                         className="mx-auto text-gray-300"
                       />
+
                       <p className="mt-3 text-sm text-gray-500">
                         No messages yet. Start chatting with us!
                       </p>
