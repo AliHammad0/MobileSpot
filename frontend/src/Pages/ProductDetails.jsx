@@ -17,6 +17,7 @@ import {
 } from 'react-icons/fi'
 
 const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
+const REVIEWS_API_URL = 'https://mobilespot-backend.vercel.app/api/v1/reviews'
 
 const tabs = ['Specifications', 'Installment Plans', 'Reviews', 'FAQs']
 
@@ -44,6 +45,11 @@ const ProductDetails = () => {
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [flyToCart, setFlyToCart] = useState(false)
   const [imageZoomed, setImageZoomed] = useState(false)
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [reviewsError, setReviewsError] = useState('')
+  const [reviewsAverage, setReviewsAverage] = useState(0)
+  const [reviewsTotal, setReviewsTotal] = useState(0)
 
   // Fetch Product
   useEffect(() => {
@@ -80,6 +86,35 @@ const ProductDetails = () => {
       setError('Product ID is missing')
       setLoading(false)
     }
+  }, [id])
+
+  // Fetch Product Reviews
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!id) return
+
+      try {
+        setReviewsLoading(true)
+        setReviewsError('')
+
+        const response = await fetch(`${REVIEWS_API_URL}/${id}`)
+        const data = await response.json()
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.message || 'Unable to load product reviews.')
+        }
+
+        setReviews(data.reviews || [])
+        setReviewsAverage(Number(data.averageRating || 0))
+        setReviewsTotal(Number(data.totalReviews || 0))
+      } catch (error) {
+        setReviewsError(error.message || 'Unable to load product reviews.')
+      } finally {
+        setReviewsLoading(false)
+      }
+    }
+
+    fetchReviews()
   }, [id])
 
   // Fetch Similar Mobiles
@@ -936,35 +971,175 @@ const ProductDetails = () => {
 
           {/* Reviews */}
           {activeTab === 'Reviews' && (
-            <div className="rounded-xl border border-gray-100 p-6">
-              <div className="flex items-center gap-3">
-                <span className="text-4xl font-bold text-black">
-                  {product.rating || 0}
-                </span>
-
+            <div className="rounded-2xl border border-gray-100 bg-white p-5 sm:p-7">
+              <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <div className="flex text-yellow-400">
-                    {[1, 2, 3, 4, 5].map((star) => (
-                      <FiStar
-                        key={star}
-                        className={
-                          star <= Math.round(product.rating || 0)
-                            ? 'fill-yellow-400'
-                            : ''
-                        }
-                      />
-                    ))}
-                  </div>
-
-                  <p className="mt-1 text-xs text-gray-500">
-                    Based on {product.numReviews || 0} reviews
+                  <p className="text-xs font-bold uppercase tracking-[3px] text-[#a58b57]">
+                    CUSTOMER FEEDBACK
                   </p>
+                  <h2 className="mt-2 text-xl font-bold text-black sm:text-2xl">
+                    What Customers Say
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-3 rounded-xl bg-[#f8f8f6] px-4 py-3">
+                  <span className="text-3xl font-bold text-black">
+                    {reviewsAverage.toFixed(1)}
+                  </span>
+                  <div>
+                    <div className="flex text-yellow-400">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <FiStar
+                          key={star}
+                          className={star <= Math.round(reviewsAverage) ? 'fill-yellow-400' : ''}
+                        />
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {reviewsTotal} {reviewsTotal === 1 ? 'review' : 'reviews'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <p className="mt-5 text-sm text-gray-500">
-                Customer reviews will appear here.
-              </p>
+              {/* Notebook-to-reviews animation */}
+              <div className="review-story relative mx-auto mb-8 flex h-[250px] max-w-2xl items-end justify-center overflow-hidden rounded-2xl bg-[#f8f7f3]">
+                <div className="review-story-label absolute left-4 top-4 text-[10px] font-bold uppercase tracking-[2px] text-gray-400">
+                  Real experiences, shared by customers
+                </div>
+
+                <div className="review-floor absolute bottom-8 left-0 h-px w-full bg-[#dedbd2]" />
+
+                <div className="review-person" aria-hidden="true">
+                  <div className="review-person-head" />
+                  <div className="review-person-body">
+                    <span className="review-person-arm review-person-arm-left" />
+                    <span className="review-person-arm review-person-arm-right" />
+                  </div>
+                  <div className="review-person-leg review-person-leg-left" />
+                  <div className="review-person-leg review-person-leg-right" />
+                </div>
+
+                <div className="review-notebook" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+
+                <div className="review-paper review-paper-one" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="review-paper review-paper-two" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+                <div className="review-paper review-paper-three" aria-hidden="true">
+                  <i />
+                  <i />
+                  <i />
+                </div>
+
+                <div className="review-transformed-card review-transformed-one" aria-hidden="true">
+                  <div className="flex items-center gap-1 text-[#c49a45]">
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                  </div>
+                  <span />
+                  <span />
+                </div>
+                <div className="review-transformed-card review-transformed-two" aria-hidden="true">
+                  <div className="flex items-center gap-1 text-[#c49a45]">
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                    <FiStar size={10} />
+                  </div>
+                  <span />
+                  <span />
+                </div>
+
+                <p className="review-story-caption absolute bottom-3 right-4 text-[10px] font-semibold tracking-wide text-gray-400">
+                  FROM NOTES TO REVIEWS
+                </p>
+              </div>
+
+              {reviewsLoading && (
+                <p className="py-4 text-center text-sm text-gray-500">
+                  Loading customer reviews...
+                </p>
+              )}
+
+              {reviewsError && (
+                <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                  {reviewsError}
+                </p>
+              )}
+
+              {!reviewsLoading && reviews.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {reviews.map((review, index) => (
+                    <article
+                      key={review._id}
+                      className="review-result-card rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
+                      style={{ '--review-index': index }}
+                    >
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f2eee5] text-sm font-bold text-[#80632f]">
+                            {(review.user?.name || 'C').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-bold text-gray-900">
+                              {review.user?.name || 'Customer'}
+                            </h3>
+                            <p className="mt-1 text-[11px] text-gray-400">
+                              {review.createdAt
+                                ? new Date(review.createdAt).toLocaleDateString('en-PK', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                  })
+                                : 'Date unavailable'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex shrink-0 text-[#c49a45]">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <FiStar
+                              key={star}
+                              size={13}
+                              className={star <= review.rating ? 'fill-[#c49a45]' : ''}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-sm leading-6 text-gray-600">
+                        {review.comment}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {!reviewsLoading && !reviewsError && reviews.length === 0 && (
+                <div className="rounded-xl border border-dashed border-gray-200 px-5 py-7 text-center">
+                  <p className="font-semibold text-gray-800">
+                    No reviews yet
+                  </p>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Be the first customer to share your experience with this mobile.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1108,6 +1283,211 @@ const ProductDetails = () => {
         @keyframes faqReveal {
           from { opacity: 0; transform: translateY(-5px); }
           to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Customer notebook-to-review story animation */
+        .review-person {
+          position: absolute;
+          z-index: 4;
+          bottom: 32px;
+          left: 12%;
+          width: 58px;
+          height: 142px;
+          opacity: 0;
+          animation: review-person-arrive 3.4s ease-in-out forwards;
+        }
+        .review-person-head {
+          position: absolute;
+          top: 0;
+          left: 18px;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          background: #c58f68;
+          border: 3px solid #9d6b4d;
+        }
+        .review-person-body {
+          position: absolute;
+          top: 25px;
+          left: 12px;
+          width: 36px;
+          height: 62px;
+          border-radius: 12px 12px 7px 7px;
+          background: #202020;
+        }
+        .review-person-arm {
+          position: absolute;
+          top: 8px;
+          width: 9px;
+          height: 48px;
+          border-radius: 10px;
+          background: #c58f68;
+          transform-origin: top center;
+        }
+        .review-person-arm-left {
+          left: -5px;
+          transform: rotate(25deg);
+        }
+        .review-person-arm-right {
+          right: -5px;
+          transform: rotate(-30deg);
+        }
+        .review-person-leg {
+          position: absolute;
+          top: 82px;
+          width: 11px;
+          height: 48px;
+          border-radius: 8px;
+          background: #343434;
+          transform-origin: top center;
+        }
+        .review-person-leg-left { left: 17px; }
+        .review-person-leg-right { right: 17px; }
+        .review-notebook {
+          position: absolute;
+          z-index: 5;
+          bottom: 37px;
+          left: calc(12% + 39px);
+          width: 48px;
+          height: 35px;
+          padding: 7px 6px;
+          border: 3px solid #80632f;
+          border-radius: 4px;
+          background: #d6ad50;
+          opacity: 0;
+          transform: rotate(-12deg);
+          animation: notebook-set-down 3.4s ease-in-out forwards;
+        }
+        .review-notebook span {
+          display: block;
+          height: 2px;
+          margin-bottom: 4px;
+          background: rgba(70, 48, 14, .45);
+        }
+        .review-paper {
+          position: absolute;
+          z-index: 3;
+          bottom: 55px;
+          left: calc(12% + 48px);
+          width: 42px;
+          height: 54px;
+          padding: 10px 6px;
+          border: 1px solid #e5e1d7;
+          border-radius: 3px;
+          background: #fff;
+          box-shadow: 0 5px 12px rgba(0,0,0,.08);
+          opacity: 0;
+        }
+        .review-paper i {
+          display: block;
+          height: 2px;
+          margin-bottom: 6px;
+          background: #d9d5cc;
+        }
+        .review-paper-one { animation: paper-fly-one 3.4s ease-out forwards; }
+        .review-paper-two { animation: paper-fly-two 3.4s ease-out forwards; }
+        .review-paper-three { animation: paper-fly-three 3.4s ease-out forwards; }
+        .review-transformed-card {
+          position: absolute;
+          z-index: 2;
+          width: 130px;
+          min-height: 76px;
+          padding: 10px;
+          border: 1px solid #e9e5dc;
+          border-radius: 10px;
+          background: #fff;
+          box-shadow: 0 8px 22px rgba(0,0,0,.08);
+          opacity: 0;
+        }
+        .review-transformed-card span {
+          display: block;
+          height: 4px;
+          margin-top: 8px;
+          border-radius: 5px;
+          background: #e7e4dd;
+        }
+        .review-transformed-card span:last-child { width: 68%; }
+        .review-transformed-one {
+          left: 44%;
+          top: 65px;
+          animation: paper-becomes-review-one 3.4s ease-out forwards;
+        }
+        .review-transformed-two {
+          right: 8%;
+          top: 105px;
+          animation: paper-becomes-review-two 3.4s ease-out forwards;
+        }
+        .review-story-caption { opacity: 0; animation: story-caption-show 3.4s ease forwards; }
+        .review-result-card {
+          animation: review-result-appear 550ms ease both;
+          animation-delay: calc(3.35s + (var(--review-index, 0) * 100ms));
+        }
+        @keyframes review-person-arrive {
+          0% { opacity: 0; transform: translateX(-130px); }
+          12% { opacity: 1; transform: translateX(0); }
+          40% { opacity: 1; transform: translateX(0) translateY(0); }
+          55% { transform: translateX(0) translateY(12px) rotate(5deg); }
+          68%, 100% { opacity: 0; transform: translateX(-10px) translateY(8px); }
+        }
+        @keyframes notebook-set-down {
+          0%, 38% { opacity: 0; transform: translate(-35px, -20px) rotate(-18deg); }
+          48% { opacity: 1; transform: translate(0, -8px) rotate(-12deg); }
+          62%, 100% { opacity: 1; transform: translate(0, 0) rotate(0); }
+        }
+        @keyframes paper-fly-one {
+          0%, 60% { opacity: 0; transform: translate(0, 0) rotate(0) scale(.7); }
+          72% { opacity: 1; transform: translate(90px, -105px) rotate(18deg) scale(1); }
+          100% { opacity: 0; transform: translate(185px, -145px) rotate(28deg) scale(.65); }
+        }
+        @keyframes paper-fly-two {
+          0%, 62% { opacity: 0; transform: translate(0, 0) rotate(0) scale(.7); }
+          75% { opacity: 1; transform: translate(155px, -65px) rotate(-12deg) scale(1); }
+          100% { opacity: 0; transform: translate(245px, -95px) rotate(-20deg) scale(.65); }
+        }
+        @keyframes paper-fly-three {
+          0%, 64% { opacity: 0; transform: translate(0, 0) rotate(0) scale(.7); }
+          77% { opacity: 1; transform: translate(105px, -15px) rotate(12deg) scale(1); }
+          100% { opacity: 0; transform: translate(205px, -30px) rotate(18deg) scale(.65); }
+        }
+        @keyframes paper-becomes-review-one {
+          0%, 72% { opacity: 0; transform: translateY(18px) scale(.6) rotate(-8deg); }
+          84% { opacity: 1; transform: translateY(0) scale(1.04) rotate(0); }
+          100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+        }
+        @keyframes paper-becomes-review-two {
+          0%, 77% { opacity: 0; transform: translateY(18px) scale(.6) rotate(8deg); }
+          89% { opacity: 1; transform: translateY(0) scale(1.04) rotate(0); }
+          100% { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+        }
+        @keyframes story-caption-show {
+          0%, 75% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes review-result-appear {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 640px) {
+          .review-person { left: 5%; transform-origin: bottom center; }
+          .review-notebook, .review-paper { left: calc(5% + 39px); }
+          .review-transformed-one { left: 40%; }
+          .review-transformed-two { right: 3%; }
+          .review-transformed-card { width: 112px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .review-person,
+          .review-notebook,
+          .review-paper,
+          .review-transformed-card,
+          .review-story-caption,
+          .review-result-card {
+            animation: none !important;
+          }
+          .review-person { opacity: 1; transform: none; }
+          .review-notebook,
+          .review-transformed-card { opacity: 1; }
+          .review-paper { display: none; }
+          .review-story-caption { opacity: 1; }
         }
 
         @media (max-width: 640px) {
