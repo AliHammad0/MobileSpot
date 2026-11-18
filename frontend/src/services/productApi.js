@@ -28,6 +28,13 @@ export const getProducts = async () => {
   return apiRequest(API_URL)
 }
 
+// Search Products
+export const searchProducts = async (query) => {
+  return apiRequest(
+    `${API_URL}/search?q=${encodeURIComponent(query)}`
+  )
+}
+
 // Get Single Product
 export const getProductById = async (id) => {
   return apiRequest(`${API_URL}/${id}`)

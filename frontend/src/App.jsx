@@ -15,6 +15,7 @@ import RecommendedProducts from './Pages/RecommendedProducts'
 import CraziestDeals from './Pages/CraziestDeals'
 import ProductDetails from './Pages/ProductDetails'
 import BrandProducts from './Pages/BrandProducts'
+import Search from './Pages/Search'
 import Login from './Pages/Login'
 import Signup from './Pages/Signup'
 import Profile from './Pages/Profile'
@@ -38,9 +39,7 @@ import ChatInbox from './Admin/ChatInbox'
 import LuckySpin from './Pages/LuckySpin'
 
 import ProtectedAdminRoute from './Admin/ProtectedAdminRoute'
-// import Hero from './Pages/Hero'
 
-// Scroll to top whenever route changes
 const ScrollToTop = () => {
   const { pathname } = useLocation()
 
@@ -61,7 +60,6 @@ const App = () => {
       <ScrollToTop />
 
       <Header />
-      {/* <Hero /> */}
 
       <div className="mt-20">
         <Routes>
@@ -81,10 +79,13 @@ const App = () => {
           {/* Public Routes */}
           <Route path="/mobiles" element={<Product />} />
           <Route path="/brand/:brand" element={<BrandProducts />} />
+          <Route path="/search" element={<Search />} />
+
           <Route
             path="/recommended-mobiles"
             element={<RecommendedProducts />}
           />
+
           <Route path="/craziest-deals" element={<CraziestDeals />} />
           <Route path="/product/:id" element={<ProductDetails />} />
 
@@ -115,8 +116,6 @@ const App = () => {
             <Route path="/admin" element={<Dashboard />} />
             <Route path="/lay" element={<AdminLayout />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
-
-            {/* Admin Chat Inbox */}
             <Route path="/admin/chats" element={<ChatInbox />} />
           </Route>
         </Routes>
