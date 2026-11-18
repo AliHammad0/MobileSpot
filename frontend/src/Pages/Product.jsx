@@ -49,15 +49,24 @@ const Product = () => {
 
   const navigationTimer = useRef(null)
   const phaseTimers = useRef([])
+  const navigationStarted = useRef(false)
 
+  // Image aur title par direct details page open hoga.
   const openProduct = (productId) => {
     if (!productId) return
     navigate(`/product/${productId}`)
   }
 
-  // Selected product ka original database record showroom mein use hoga
+  // Animation sirf View Details button se start hogi.
   const handleViewDetails = (product) => {
-    if (!product?._id || !product.inStock || showShowroom) return
+    if (
+      !product?._id ||
+      !product.inStock ||
+      showShowroom ||
+      navigationStarted.current
+    ) return
+
+    navigationStarted.current = true
 
     if (navigationTimer.current) {
       clearTimeout(navigationTimer.current)
@@ -126,15 +135,27 @@ const Product = () => {
     fetchProducts()
   }, [])
 
-  // Showroom rack: multiple actual products from database
+  // Showroom mein database ke actual phone products use honge.
+  // Selected phone hamesha first box hoga.
   const shelfProducts = useMemo(() => {
     if (!selectedProduct) return []
 
-    const others = products
-      .filter((item) => item._id !== selectedProduct._id)
-      .slice(0, 11)
+    const availableProducts = [
+      selectedProduct,
+      ...products.filter(
+        (item) =>
+          item._id !== selectedProduct._id &&
+          item.inStock
+      )
+    ]
 
-    return [...others, selectedProduct]
+    if (!availableProducts.length) return []
+
+    // Kam products hon tab bhi shelves par multiple sealed boxes.
+    return Array.from(
+      { length: Math.min(12, Math.max(8, availableProducts.length)) },
+      (_, index) => availableProducts[index % availableProducts.length]
+    )
   }, [products, selectedProduct])
 
   const brands = useMemo(() => {
@@ -405,7 +426,6 @@ const Product = () => {
           z-index: 2;
         }
 
-        /* Premium owner outfit */
         .owner-suit {
           background: linear-gradient(110deg, #171717, #37322c 50%, #171717);
           border: 1px solid #554b3d;
@@ -509,32 +529,351 @@ const Product = () => {
           mix-blend-mode: multiply;
         }
 
+        /* Mobile: complete showroom fits inside one screen */
         @media (max-width: 640px) {
-          .shop-person {
-            transform: scale(.66);
-            transform-origin: bottom center;
-            margin-left: -18px;
-            margin-right: -18px;
+          .showroom-screen {
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
+            overflow: hidden !important;
+            padding: 7px !important;
+            align-items: stretch;
+          }
+
+          .showroom-content {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            width: 100%;
+            height: 100%;
+            min-height: 0;
+            margin: 0;
+            gap: 5px;
+          }
+
+          .showroom-header {
+            flex: 0 0 auto;
+            margin: 0 !important;
+            padding-top: 2px;
+          }
+
+          .showroom-header .brand-label {
+            font-size: 8px;
+            letter-spacing: 3px;
+          }
+
+          .showroom-header h2 {
+            margin-top: 2px;
+            font-size: 16px;
+            line-height: 20px;
+          }
+
+          .showroom-header .header-description {
+            display: none;
+          }
+
+          .showroom-dialogue {
+            flex: 0 0 47px;
+            min-height: 47px !important;
+            margin: 0 !important;
+          }
+
+          .showroom-dialogue > div {
+            width: 100%;
+            padding: 6px 9px;
+            border-radius: 10px;
+          }
+
+          .showroom-dialogue p:first-child {
+            font-size: 10px;
+            line-height: 13px;
+          }
+
+          .showroom-dialogue p:nth-child(2) {
+            margin-top: 2px;
+            font-size: 9px;
+            line-height: 12px;
+          }
+
+          .showroom-store {
+            display: flex;
+            flex: 1 1 auto;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 15px;
+          }
+
+          .showroom-back-wall {
+            flex: 0 0 auto;
+            padding: 8px 7px 9px !important;
+            border-bottom-width: 5px !important;
+          }
+
+          .showroom-rack-heading {
+            margin-bottom: 7px !important;
+            gap: 6px;
+          }
+
+          .showroom-rack-heading h3 {
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            white-space: nowrap;
+          }
+
+          .showroom-rack {
+            padding: 7px !important;
+            border-width: 5px !important;
+          }
+
+          .showroom-rack-grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 7px 6px !important;
+          }
+
+          .showroom-rack-grid > div {
+            min-width: 0;
+            padding: 5px 2px 5px !important;
+            border-bottom-width: 3px !important;
           }
 
           .phone-box {
-            height: 94px;
-            padding: 5px;
+            height: 76px;
+            padding: 4px;
+            border-radius: 4px;
+          }
+
+          .phone-box::before {
+            inset: 3px;
           }
 
           .phone-box-image {
-            height: 51px;
+            height: 39px;
           }
 
-          .phase-picking .selected-box {
-            animation-name: boxPickMobile !important;
+          .phone-box-top {
+            top: -3px;
+            height: 4px;
+          }
+
+          .phone-box-side {
+            right: -4px;
+            width: 4px;
+          }
+
+          .phone-box .box-brand {
+            margin-bottom: 1px;
+            font-size: 6px;
+            line-height: 8px;
+          }
+
+          .phone-box .box-model {
+            margin-top: 1px;
+            font-size: 6px;
+            line-height: 8px;
+          }
+
+          .phone-box .sealed-label {
+            display: none;
+          }
+
+          .selected-box {
+            border-width: 2px;
+            box-shadow: 0 0 0 2px rgba(181,138,79,.25);
+          }
+
+          .selected-box .selected-label {
+            top: -10px;
+            padding: 2px 4px;
+            font-size: 5px;
+            letter-spacing: 0;
+          }
+
+          .rack-cabinet {
+            height: 17px !important;
+            margin-top: 1px !important;
+            border-top-width: 2px !important;
+          }
+
+          .rack-cabinet span {
+            font-size: 6px;
+            letter-spacing: 2px;
+          }
+
+          .showroom-floor {
+            flex: 1 1 auto;
+            min-height: 0 !important;
+            padding: 4px 2px 0 !important;
+            align-items: flex-end;
+          }
+
+          .staff-member {
+            flex: 0 0 54px;
+            min-width: 54px;
+            overflow: visible;
+          }
+
+          .shop-person {
+            width: 66px;
+            height: 118px;
+            transform: scale(.52);
+            transform-origin: bottom center;
+            margin: 0 -30px;
+          }
+
+          .staff-name {
+            margin-top: -1px !important;
+            padding: 3px 6px !important;
+            font-size: 7px !important;
+            letter-spacing: 1px !important;
+            white-space: nowrap;
+          }
+
+          .staff-role {
+            margin-top: 2px !important;
+            font-size: 6px !important;
+            line-height: 8px;
+            white-space: nowrap;
+          }
+
+          .showroom-counter {
+            min-width: 0;
+            flex: 1 1 auto;
+            margin: 0 3px 5px !important;
+          }
+
+          .counter-display {
+            height: 65px !important;
+            border-width: 2px !important;
+            border-radius: 8px 8px 0 0 !important;
+          }
+
+          .counter-display .picked-package {
+            top: 7px;
+            left: 50%;
+            width: 34px;
+            height: 52px;
+            transform: translateX(-50%);
+          }
+
+          .counter-display .counter-ready {
+            position: absolute;
+            right: 3px;
+            bottom: 3px;
+            left: 3px;
+            padding: 2px;
+            border-radius: 4px;
+            background: rgba(255,255,255,.9);
+            font-size: 6px;
+            line-height: 8px;
+          }
+
+          .counter-top {
+            height: 7px !important;
+            border-top-width: 1px !important;
+          }
+
+          .counter-base {
+            height: 22px !important;
+            border-left-width: 2px !important;
+            border-right-width: 2px !important;
+          }
+
+          .counter-caption {
+            margin-top: 3px !important;
+            font-size: 5px !important;
+            letter-spacing: 1px !important;
+            white-space: nowrap;
+          }
+
+          .showroom-product-info {
+            flex: 0 0 auto;
+            margin: 0 !important;
+            gap: 8px !important;
+            padding: 7px !important;
+            border-radius: 10px !important;
+          }
+
+          .showroom-product-image {
+            width: 39px !important;
+            height: 42px !important;
+            padding: 3px !important;
+          }
+
+          .showroom-product-info .product-status {
+            font-size: 7px;
+            line-height: 9px;
+          }
+
+          .showroom-product-info h3 {
+            margin-top: 2px;
+            font-size: 10px;
+            line-height: 13px;
+          }
+
+          .showroom-product-info .product-price {
+            margin-top: 1px;
+            font-size: 10px;
+            line-height: 12px;
+          }
+
+          .showroom-product-info .processing-label {
+            padding: 4px 5px;
+            font-size: 6px;
+          }
+
+          .showroom-footer {
+            display: none;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .showroom-header h2 {
+            font-size: 14px;
+          }
+
+          .showroom-dialogue {
+            flex-basis: 43px;
+            min-height: 43px !important;
+          }
+
+          .phone-box {
+            height: 68px;
+          }
+
+          .phone-box-image {
+            height: 34px;
+          }
+
+          .staff-member {
+            flex-basis: 47px;
+            min-width: 47px;
+          }
+
+          .shop-person {
+            transform: scale(.46);
+          }
+
+          .counter-display {
+            height: 56px !important;
+          }
+
+          .counter-display .picked-package {
+            height: 44px;
+            width: 29px;
           }
         }
 
         @keyframes boxPickMobile {
           0% { transform: translate(0,0) scale(1); opacity: 1; }
-          35% { transform: translate(10px,-25px) scale(1.05); opacity: 1; }
-          75%,100% { transform: translate(25px,65px) scale(.7); opacity: 0; }
+          35% { transform: translate(8px,-18px) scale(1.05); opacity: 1; }
+          75%,100% { transform: translate(20px,45px) scale(.7); opacity: 0; }
+        }
+
+        @media (max-width: 640px) {
+          .phase-picking .selected-box {
+            animation: boxPickMobile 2.4s cubic-bezier(.45,0,.2,1) forwards !important;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -550,15 +889,15 @@ const Product = () => {
 
       {/* PREMIUM MOBILE SHOWROOM */}
       {showShowroom && selectedProduct && (
-        <div className={`showroom-screen phase-${showroomPhase} fixed inset-0 z-[500] flex items-center justify-center overflow-y-auto bg-[#e8e3d9] px-3 py-5`}>
+        <div className={`showroom-screen phase-${showroomPhase} fixed inset-0 z-[500] flex items-center justify-center overflow-hidden bg-[#e8e3d9] px-3 py-5`}>
 
           <div className="absolute inset-0 bg-gradient-to-b from-[#e5dfd3] via-[#f8f6f1] to-[#d8cbb7]" />
 
-          <div className="relative z-10 my-auto w-full max-w-6xl">
+          <div className="showroom-content relative z-10 my-auto w-full max-w-6xl">
 
             {/* Shop Header */}
-            <div className="mb-5 text-center">
-              <p className="text-[10px] font-bold tracking-[5px] text-[#96764b]">
+            <div className="showroom-header mb-5 text-center">
+              <p className="brand-label text-[10px] font-bold tracking-[5px] text-[#96764b]">
                 MOBILESPOT
               </p>
 
@@ -566,13 +905,13 @@ const Product = () => {
                 Premium Smartphone Store
               </h2>
 
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="header-description mt-2 text-xs text-gray-500">
                 Personal assistance from our showroom team
               </p>
             </div>
 
             {/* Dialogue */}
-            <div className="mb-4 flex min-h-[68px] items-center justify-center">
+            <div className="showroom-dialogue mb-4 flex min-h-[68px] items-center justify-center">
               {showroomPhase === 'instruction' && (
                 <div className="showroom-bubble rounded-2xl border border-[#e2d7c5] bg-white px-5 py-3 text-center shadow-lg">
                   <p className="text-sm font-bold text-gray-900">
@@ -608,12 +947,12 @@ const Product = () => {
             </div>
 
             {/* Store Interior */}
-            <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-[#f4efe5] shadow-2xl">
+            <div className="showroom-store relative overflow-hidden rounded-3xl border border-white/80 bg-[#f4efe5] shadow-2xl">
 
               {/* Back wall */}
-              <div className="relative border-b-[8px] border-[#9b7950] bg-gradient-to-b from-[#ddd0b9] to-[#eee5d5] px-3 pb-5 pt-5 sm:px-6">
+              <div className="showroom-back-wall relative border-b-[8px] border-[#9b7950] bg-gradient-to-b from-[#ddd0b9] to-[#eee5d5] px-3 pb-5 pt-5 sm:px-6">
 
-                <div className="mb-4 flex items-center justify-center gap-3">
+                <div className="showroom-rack-heading mb-4 flex items-center justify-center gap-3">
                   <span className="h-px flex-1 bg-[#b49a73]" />
                   <h3 className="text-xs font-bold tracking-[3px] text-[#59452e] sm:text-sm">
                     SMARTPHONE COLLECTION
@@ -622,25 +961,22 @@ const Product = () => {
                 </div>
 
                 {/* Retail display rack */}
-                <div className="relative rounded-lg border-[9px] border-[#765638] bg-[#a8875d] p-2 shadow-[inset_0_0_18px_rgba(0,0,0,.3)] sm:p-4">
+                <div className="showroom-rack relative rounded-lg border-[9px] border-[#765638] bg-[#a8875d] p-2 shadow-[inset_0_0_18px_rgba(0,0,0,.3)] sm:p-4">
 
-                  {/* LED light */}
                   <div className="absolute left-2 right-2 top-0 h-1 bg-[#fff1c9] shadow-[0_0_12px_4px_rgba(255,228,165,.8)]" />
 
-                  {/* Shelves */}
-                  <div className="grid grid-cols-4 gap-x-2 gap-y-3 sm:gap-x-4 sm:gap-y-4">
+                  <div className="showroom-rack-grid grid grid-cols-4 gap-x-2 gap-y-3 sm:gap-x-4 sm:gap-y-4">
 
                     {shelfProducts.map((phone, index) => {
-                      const isSelected = phone._id === selectedProduct._id
+                      const isSelected = index === 0
 
                       return (
                         <div
-                          key={phone._id}
+                          key={`${phone._id}-${index}`}
                           className={`relative flex items-end justify-center border-b-[5px] border-[#d3bc96] bg-gradient-to-b from-[#d4c0a0] to-[#b99b70] px-1 pb-2 pt-3 ${
                             isSelected ? 'z-20' : ''
                           }`}
                         >
-                          {/* Sealed retail box */}
                           <div
                             className={`phone-box w-full max-w-[105px] ${
                               isSelected ? 'selected-box' : ''
@@ -652,7 +988,7 @@ const Product = () => {
 
                             <div className="relative z-[1] flex h-full flex-col items-center justify-center">
 
-                              <p className="mb-1 max-w-full truncate text-[7px] font-black uppercase tracking-wider text-[#756044] sm:text-[9px]">
+                              <p className="box-brand mb-1 max-w-full truncate text-[7px] font-black uppercase tracking-wider text-[#756044] sm:text-[9px]">
                                 {phone.brand || 'SMARTPHONE'}
                               </p>
 
@@ -666,17 +1002,17 @@ const Product = () => {
                                 <FiSmartphone className="my-2 text-3xl text-[#8d7859]" />
                               )}
 
-                              <p className="mt-1 line-clamp-1 w-full text-center text-[7px] font-bold text-[#3b3023] sm:text-[9px]">
+                              <p className="box-model mt-1 line-clamp-1 w-full text-center text-[7px] font-bold text-[#3b3023] sm:text-[9px]">
                                 {phone.name}
                               </p>
 
-                              <span className="mt-1 rounded-sm bg-[#e6dcc9] px-1.5 py-0.5 text-[6px] font-bold tracking-wider text-[#796343] sm:text-[7px]">
+                              <span className="sealed-label mt-1 rounded-sm bg-[#e6dcc9] px-1.5 py-0.5 text-[6px] font-bold tracking-wider text-[#796343] sm:text-[7px]">
                                 SEALED PACK
                               </span>
                             </div>
 
                             {isSelected && (
-                              <span className="absolute -top-3 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#8b673d] px-2 py-1 text-[7px] font-bold tracking-wider text-white sm:text-[8px]">
+                              <span className="selected-label absolute -top-3 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#8b673d] px-2 py-1 text-[7px] font-bold tracking-wider text-white sm:text-[8px]">
                                 CUSTOMER'S CHOICE
                               </span>
                             )}
@@ -687,8 +1023,7 @@ const Product = () => {
 
                   </div>
 
-                  {/* Rack lower cabinet */}
-                  <div className="mt-1 flex h-7 items-center justify-center border-t-4 border-[#d6bd94] bg-gradient-to-b from-[#9a744b] to-[#64472e]">
+                  <div className="rack-cabinet mt-1 flex h-7 items-center justify-center border-t-4 border-[#d6bd94] bg-gradient-to-b from-[#9a744b] to-[#64472e]">
                     <span className="text-[8px] font-bold tracking-[4px] text-[#f0dfbd]">
                       MOBILESPOT SHOWCASE
                     </span>
@@ -697,10 +1032,10 @@ const Product = () => {
               </div>
 
               {/* Foreground counter and staff */}
-              <div className="relative flex min-h-[235px] items-end justify-between overflow-hidden bg-gradient-to-b from-[#e8dfd0] to-[#cbb99e] px-1 pt-4 sm:min-h-[260px] sm:px-6">
+              <div className="showroom-floor relative flex min-h-[235px] items-end justify-between overflow-hidden bg-gradient-to-b from-[#e8dfd0] to-[#cbb99e] px-1 pt-4 sm:min-h-[260px] sm:px-6">
 
                 {/* Owner */}
-                <div className="owner-character relative z-20 flex shrink-0 flex-col items-center">
+                <div className="owner-character staff-member relative z-20 flex shrink-0 flex-col items-center">
                   <div className="shop-person">
                     <div className="person-head" />
                     <div className="person-hair" />
@@ -723,20 +1058,19 @@ const Product = () => {
                     <div className="person-leg right" />
                   </div>
 
-                  <span className="mt-[-5px] rounded-full bg-[#171717] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
+                  <span className="staff-name mt-[-5px] rounded-full bg-[#171717] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
                     OWNER
                   </span>
-                  <span className="mt-1 text-[8px] font-semibold text-[#665640]">
+                  <span className="staff-role mt-1 text-[8px] font-semibold text-[#665640]">
                     STORE MANAGER
                   </span>
                 </div>
 
                 {/* Display counter */}
-                <div className="relative mx-1 mb-4 flex min-w-0 flex-1 flex-col items-center sm:mx-5">
+                <div className="showroom-counter relative mx-1 mb-4 flex min-w-0 flex-1 flex-col items-center sm:mx-5">
 
-                  <div className="relative flex h-[95px] w-full max-w-[330px] items-center justify-center rounded-t-xl border-x-4 border-t-4 border-white/80 bg-white/30 shadow-inner sm:h-[115px]">
+                  <div className="counter-display relative flex h-[95px] w-full max-w-[330px] items-center justify-center rounded-t-xl border-x-4 border-t-4 border-white/80 bg-white/30 shadow-inner">
 
-                    {/* Picked selected box */}
                     {selectedProduct.image && (
                       <div className="picked-package">
                         <img
@@ -747,7 +1081,7 @@ const Product = () => {
                     )}
 
                     {showroomPhase === 'showing' && (
-                      <div className="showroom-bubble text-center">
+                      <div className="counter-ready showroom-bubble text-center">
                         <p className="text-[9px] font-bold tracking-widest text-[#80613a]">
                           READY FOR CUSTOMER
                         </p>
@@ -764,17 +1098,17 @@ const Product = () => {
                     )}
                   </div>
 
-                  <div className="h-3 w-full max-w-[355px] rounded-sm border-t border-white/70 bg-gradient-to-b from-[#f7f2e9] to-[#a88d68] shadow-lg" />
+                  <div className="counter-top h-3 w-full max-w-[355px] rounded-sm border-t border-white/70 bg-gradient-to-b from-[#f7f2e9] to-[#a88d68] shadow-lg" />
 
-                  <div className="h-12 w-[90%] max-w-[320px] border-x-4 border-[#a78962] bg-gradient-to-b from-[#9a7953] to-[#60462e] shadow-md" />
+                  <div className="counter-base h-12 w-[90%] max-w-[320px] border-x-4 border-[#a78962] bg-gradient-to-b from-[#9a7953] to-[#60462e] shadow-md" />
 
-                  <span className="mt-2 text-[7px] font-bold tracking-[3px] text-[#6e593d]">
+                  <span className="counter-caption mt-2 text-[7px] font-bold tracking-[3px] text-[#6e593d]">
                     CUSTOMER SERVICE COUNTER
                   </span>
                 </div>
 
                 {/* Salesman */}
-                <div className="salesman-character relative z-20 flex shrink-0 flex-col items-center">
+                <div className="salesman-character staff-member relative z-20 flex shrink-0 flex-col items-center">
                   <div className="shop-person">
                     <div className="person-head" />
                     <div className="person-hair" />
@@ -790,23 +1124,14 @@ const Product = () => {
 
                     <div className="salesman-reaching-arm person-arm" />
 
-                    {selectedProduct.image && (
-                      <div className="picked-package">
-                        <img
-                          src={selectedProduct.image}
-                          alt={selectedProduct.name}
-                        />
-                      </div>
-                    )}
-
                     <div className="person-leg left" />
                     <div className="person-leg right" />
                   </div>
 
-                  <span className="mt-[-5px] rounded-full bg-[#365b4c] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
+                  <span className="staff-name mt-[-5px] rounded-full bg-[#365b4c] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
                     SALESMAN
                   </span>
-                  <span className="mt-1 text-[8px] font-semibold text-[#665640]">
+                  <span className="staff-role mt-1 text-[8px] font-semibold text-[#665640]">
                     CUSTOMER SERVICE
                   </span>
                 </div>
@@ -814,9 +1139,9 @@ const Product = () => {
             </div>
 
             {/* Selected product info */}
-            <div className="mx-auto mt-4 flex max-w-lg items-center gap-4 rounded-2xl border border-[#e2d7c5] bg-white/95 p-3 shadow-lg sm:p-4">
+            <div className="showroom-product-info mx-auto mt-4 flex max-w-lg items-center gap-4 rounded-2xl border border-[#e2d7c5] bg-white/95 p-3 shadow-lg sm:p-4">
 
-              <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-md border border-[#d9c9ad] bg-[#f4efe5] p-1">
+              <div className="showroom-product-image flex h-16 w-14 shrink-0 items-center justify-center rounded-md border border-[#d9c9ad] bg-[#f4efe5] p-1">
                 {selectedProduct.image ? (
                   <img
                     src={selectedProduct.image}
@@ -829,7 +1154,7 @@ const Product = () => {
               </div>
 
               <div className="min-w-0 flex-1">
-                <p className="text-[9px] font-bold tracking-widest text-gray-400">
+                <p className="product-status text-[9px] font-bold tracking-widest text-gray-400">
                   {showroomPhase === 'instruction'
                     ? 'CUSTOMER REQUEST'
                     : showroomPhase === 'picking'
@@ -841,17 +1166,17 @@ const Product = () => {
                   {selectedProduct.name}
                 </h3>
 
-                <p className="mt-1 text-sm font-bold text-[#8c7048]">
+                <p className="product-price mt-1 text-sm font-bold text-[#8c7048]">
                   {formatPrice(selectedProduct.price)}
                 </p>
               </div>
 
-              <span className="shrink-0 rounded-full bg-[#f1e9dc] px-2 py-1 text-[8px] font-bold text-[#82633c]">
+              <span className="processing-label shrink-0 rounded-full bg-[#f1e9dc] px-2 py-1 text-[8px] font-bold text-[#82633c]">
                 {showroomPhase === 'showing' ? 'READY' : 'PROCESSING'}
               </span>
             </div>
 
-            <p className="mt-4 text-center text-[9px] font-bold tracking-[4px] text-[#806d50]">
+            <p className="showroom-footer mt-4 text-center text-[9px] font-bold tracking-[4px] text-[#806d50]">
               MOBILESPOT — PREMIUM SMARTPHONE STORE
             </p>
           </div>
@@ -1159,7 +1484,7 @@ const Product = () => {
                     className="group flex flex-col overflow-hidden rounded-2xl border border-[#ebe9e4] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                   >
 
-                    {/* Product Image */}
+                    {/* Product Image: direct navigation */}
                     <button
                       type="button"
                       onClick={() => openProduct(product._id)}
@@ -1212,6 +1537,7 @@ const Product = () => {
                         {product.brand}
                       </p>
 
+                      {/* Title: direct navigation, no showroom animation */}
                       <button
                         type="button"
                         onClick={() => openProduct(product._id)}
@@ -1259,7 +1585,7 @@ const Product = () => {
                         </span>
                       </div>
 
-                      {/* View Details */}
+                      {/* Only this button starts showroom animation */}
                       <button
                         type="button"
                         onClick={() => handleViewDetails(product)}
