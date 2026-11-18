@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import {
   FiTrash2,
@@ -19,12 +19,14 @@ import {
 
 const Cart = ({ isOpen, onClose }) => {
   const dispatch = useDispatch()
+  const navigate = useNavigate()
 
   const cartItems = useSelector(
     (state) => state.cart.cartItems
   )
 
   const [deletingItem, setDeletingItem] = useState(null)
+  const [isCheckingOut, setIsCheckingOut] = useState(false)
 
   const subtotal = cartItems.reduce(
     (total, item) =>
@@ -43,7 +45,7 @@ const Cart = ({ isOpen, onClose }) => {
   const formatPrice = (price) =>
     `Rs. ${Number(price).toLocaleString('en-PK')}`
 
-  // Animated Product Delete
+  // Remove Product Animation
   const handleRemoveProduct = (productId) => {
     if (deletingItem) return
 
@@ -55,10 +57,31 @@ const Cart = ({ isOpen, onClose }) => {
     }, 350)
   }
 
-  // Close Cart With Escape Key
+  // Checkout Animation
+  const handleCheckout = () => {
+    if (isCheckingOut || cartItems.length === 0) return
+
+    setIsCheckingOut(true)
+  }
+
+  // Navigate After Animation
+  useEffect(() => {
+    if (!isCheckingOut) return
+
+    const timer = setTimeout(() => {
+      onClose?.()
+      navigate('/checkout')
+    }, 2000)
+
+    return () => clearTimeout(timer)
+  }, [isCheckingOut, navigate, onClose])
+
+  // Escape Key
   useEffect(() => {
     const handleEscape = (e) => {
-      if (e.key === 'Escape') onClose?.()
+      if (e.key === 'Escape' && !isCheckingOut) {
+        onClose?.()
+      }
     }
 
     window.addEventListener('keydown', handleEscape)
@@ -66,11 +89,11 @@ const Cart = ({ isOpen, onClose }) => {
     return () => {
       window.removeEventListener('keydown', handleEscape)
     }
-  }, [onClose])
+  }, [onClose, isCheckingOut])
 
   // Prevent Background Scrolling
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen || isCheckingOut) {
       document.body.style.overflow = 'hidden'
     } else {
       document.body.style.overflow = ''
@@ -79,10 +102,81 @@ const Cart = ({ isOpen, onClose }) => {
     return () => {
       document.body.style.overflow = ''
     }
-  }, [isOpen])
+  }, [isOpen, isCheckingOut])
 
   return (
     <>
+      <style>
+        {`
+          @keyframes riderRide {
+            0% {
+              transform: translateX(-110vw);
+              opacity: 0;
+            }
+
+            15% {
+              opacity: 1;
+            }
+
+            85% {
+              opacity: 1;
+            }
+
+            100% {
+              transform: translateX(110vw);
+              opacity: 0;
+            }
+          }
+
+          .rider-ride-animation {
+            animation: riderRide 1.8s ease-in-out forwards;
+          }
+        `}
+      </style>
+
+      {/* Checkout Animation Screen */}
+      {isCheckingOut && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center overflow-hidden bg-white">
+
+          <div className="w-full text-center">
+
+            <h2 className="mb-3 text-2xl font-bold text-gray-900">
+              Preparing Your Order
+            </h2>
+
+            <p className="text-sm text-gray-500">
+              Your shopping journey is almost complete.
+            </p>
+
+          </div>
+
+          {/* Moving Delivery Rider */}
+          <div className="relative mt-8 h-64 w-full overflow-hidden">
+
+            <img
+              src="/delivery-rider.png"
+              alt="Delivery rider"
+              className="rider-ride-animation absolute left-1/2 top-1/2 h-60 w-64 max-w-none -translate-x-1/2 -translate-y-1/2 object-contain"
+              style={{
+                animation: 'riderRide 1.8s ease-in-out forwards'
+              }}
+            />
+
+          </div>
+
+          <div className="mt-5 text-center">
+            <p className="text-sm font-semibold text-gray-800">
+              Getting everything ready...
+            </p>
+
+            <p className="mt-2 text-xs text-gray-400">
+              Please wait a moment
+            </p>
+          </div>
+
+        </div>
+      )}
+
       {/* Overlay */}
       <div
         onClick={onClose}
@@ -101,8 +195,10 @@ const Cart = ({ isOpen, onClose }) => {
             : 'translate-x-full'
         }`}
       >
+
         {/* Header */}
         <div className="flex items-center justify-between border-b border-gray-100 px-5 py-5">
+
           <div>
             <h2 className="text-xl font-bold text-gray-900">
               Shopping Cart
@@ -120,15 +216,16 @@ const Cart = ({ isOpen, onClose }) => {
           >
             <FiX size={21} />
           </button>
+
         </div>
 
         {/* Cart Products */}
         <div className="flex-1 overflow-y-auto px-5 py-5">
 
           {cartItems.length === 0 ? (
+
             <div className="flex h-full flex-col items-center justify-center text-center">
 
-              {/* Delivery Rider Image */}
               <div className="mb-4 flex w-full items-center justify-center">
                 <img
                   src="/delivery-rider.png"
@@ -153,14 +250,18 @@ const Cart = ({ isOpen, onClose }) => {
                 <FiShoppingCart size={17} />
                 Continue Shopping
               </button>
+
             </div>
+
           ) : (
+
             <div className="space-y-5">
 
               {cartItems.map((item) => (
+
                 <div
                   key={item._id}
-                  className={`flex gap-4 border-b border-gray-100 pb-5 transition-all duration-350 ease-in-out ${
+                  className={`flex gap-4 border-b border-gray-100 pb-5 transition-all duration-300 ${
                     deletingItem === item._id
                       ? 'translate-x-12 scale-95 opacity-0'
                       : 'translate-x-0 scale-100 opacity-100'
@@ -169,6 +270,7 @@ const Cart = ({ isOpen, onClose }) => {
 
                   {/* Product Image */}
                   <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-[#f7f6f3]">
+
                     <img
                       src={
                         item.image ||
@@ -179,12 +281,14 @@ const Cart = ({ isOpen, onClose }) => {
                       alt={item.name}
                       className="h-full w-full object-contain p-2"
                     />
+
                   </div>
 
                   {/* Product Details */}
                   <div className="flex min-w-0 flex-1 flex-col justify-between">
 
                     <div className="flex justify-between gap-2">
+
                       <div>
                         <h3 className="text-sm font-bold text-gray-900">
                           {item.name}
@@ -206,11 +310,12 @@ const Cart = ({ isOpen, onClose }) => {
                       >
                         <FiTrash2 size={17} />
                       </button>
+
                     </div>
 
                     <div className="flex items-center justify-between gap-2">
 
-                      {/* Quantity Controls */}
+                      {/* Quantity */}
                       <div className="flex items-center overflow-hidden rounded-md border border-gray-200">
 
                         <button
@@ -219,7 +324,6 @@ const Cart = ({ isOpen, onClose }) => {
                           }
                           disabled={item.quantity <= 1}
                           className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100 disabled:opacity-40"
-                          aria-label="Decrease quantity"
                         >
                           <FiMinus size={12} />
                         </button>
@@ -233,18 +337,19 @@ const Cart = ({ isOpen, onClose }) => {
                             dispatch(increaseQuantity(item._id))
                           }
                           className="flex h-8 w-8 items-center justify-center transition hover:bg-gray-100"
-                          aria-label="Increase quantity"
                         >
                           <FiPlus size={12} />
                         </button>
+
                       </div>
 
-                      {/* Product Total */}
+                      {/* Price */}
                       <p className="text-sm font-bold text-gray-900">
                         {formatPrice(
                           Number(item.price || 0) * item.quantity
                         )}
                       </p>
+
                     </div>
                   </div>
                 </div>
@@ -258,12 +363,15 @@ const Cart = ({ isOpen, onClose }) => {
                 <FiTrash2 size={15} />
                 Clear Cart
               </button>
+
             </div>
           )}
+
         </div>
 
         {/* Footer */}
         {cartItems.length > 0 && (
+
           <div className="border-t border-gray-200 bg-white px-5 py-5">
 
             <div className="mb-4 space-y-3">
@@ -288,6 +396,7 @@ const Cart = ({ isOpen, onClose }) => {
 
               {/* Total */}
               <div className="flex justify-between border-t border-gray-100 pt-3">
+
                 <span className="font-bold text-gray-900">
                   Total
                 </span>
@@ -295,23 +404,28 @@ const Cart = ({ isOpen, onClose }) => {
                 <span className="text-lg font-bold text-gray-900">
                   {formatPrice(total)}
                 </span>
+
               </div>
+
             </div>
 
-            {/* Checkout */}
-            <Link
-              to="/checkout"
-              onClick={onClose}
-              className="flex w-full items-center justify-center rounded-lg bg-black py-4 text-sm font-semibold text-white transition hover:bg-gray-800"
+            {/* Proceed To Checkout */}
+            <button
+              type="button"
+              onClick={handleCheckout}
+              disabled={isCheckingOut}
+              className="flex w-full items-center justify-center rounded-lg bg-black py-4 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-70"
             >
               Proceed to Checkout
-            </Link>
+            </button>
 
             <p className="mt-3 text-center text-xs text-gray-400">
               Shipping charges included in total
             </p>
+
           </div>
         )}
+
       </div>
     </>
   )
