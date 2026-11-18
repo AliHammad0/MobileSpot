@@ -10,7 +10,7 @@ import {
 
 import { addToCart } from '../redux/slices/cartSlice'
 
-const API_URL = 'http://localhost:8080/api/v1/products/recommended'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products/recommended'
 
 const RecommendedProducts = ({ onAddToCart }) => {
   const dispatch = useDispatch()

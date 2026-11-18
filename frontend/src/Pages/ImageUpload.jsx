@@ -41,7 +41,7 @@ const ImageUpload = ({ token, onUpload }) => {
       formData.append('image', image)
 
       const response = await fetch(
-        'http://localhost:8080/api/v1/upload',
+        'https://mobilespot-backend.vercel.app/api/v1/upload',
         {
           method: 'POST',
           headers: {

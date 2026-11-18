@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react'
 import { FiUsers, FiTrash2, FiRefreshCw } from 'react-icons/fi'
 
-const API_URL = 'http://localhost:8080/api/v1/users'
+const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/users'
 
 const AllUsers = () => {
   const [users, setUsers] = useState([])
