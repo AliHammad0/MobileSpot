@@ -15,6 +15,7 @@ import couponRoutes from './routes/coupon.js'
 import uploadRoutes from './routes/upload.js'
 import chatRoutes from './routes/chat.js'
 import luckySpinRoutes from './routes/luckySpin.js'
+import reviewRoutes from './routes/review.js'
 
 const app = express()
 
@@ -37,6 +38,7 @@ app.use('/api/v1/coupon', couponRoutes)
 app.use('/api/v1/upload', uploadRoutes)
 app.use('/api/v1/chat', chatRoutes)
 app.use('/api/v1/lucky-spin', luckySpinRoutes)
+app.use('/api/v1/reviews', reviewRoutes)
 
 // Export Express app for Vercel
 export default app

@@ -22,6 +22,11 @@ import {
 
 const VIP_LIMIT = 100000
 
+const API_URL = (
+  import.meta.env.VITE_API_URL ||
+  'https://mobilespot-backend.vercel.app/api/v1'
+).replace(/\/$/, '')
+
 const statusStyles = {
   Pending: 'bg-yellow-100 text-yellow-700',
   Processing: 'bg-blue-100 text-blue-700',
@@ -43,6 +48,11 @@ const MyOrders = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState('')
+
+  const [openReviews, setOpenReviews] = useState({})
+  const [reviewForms, setReviewForms] = useState({})
+  const [reviewLoading, setReviewLoading] = useState({})
+  const [reviewMessages, setReviewMessages] = useState({})
 
   const fetchOrders = async () => {
     try {
@@ -108,6 +118,129 @@ const MyOrders = () => {
     }
   }
 
+  const getProductId = (item) => {
+    if (typeof item.product === 'object') {
+      return item.product?._id
+    }
+
+    return item.product
+  }
+
+  const toggleReview = (productId) => {
+    setOpenReviews((prev) => ({
+      ...prev,
+      [productId]: !prev[productId]
+    }))
+
+    setReviewMessages((prev) => ({
+      ...prev,
+      [productId]: ''
+    }))
+  }
+
+  const handleReviewChange = (productId, field, value) => {
+    setReviewForms((prev) => ({
+      ...prev,
+      [productId]: {
+        rating: prev[productId]?.rating || 5,
+        comment: prev[productId]?.comment || '',
+        [field]: value
+      }
+    }))
+  }
+
+  const handleSubmitReview = async (productId) => {
+    const form = reviewForms[productId] || {
+      rating: 5,
+      comment: ''
+    }
+
+    if (!form.comment.trim() || form.comment.trim().length < 3) {
+      setReviewMessages((prev) => ({
+        ...prev,
+        [productId]: 'Please write at least 3 characters.'
+      }))
+      return
+    }
+
+    if (form.comment.trim().length > 1000) {
+      setReviewMessages((prev) => ({
+        ...prev,
+        [productId]: 'Review cannot exceed 1000 characters.'
+      }))
+      return
+    }
+
+    try {
+      setReviewLoading((prev) => ({
+        ...prev,
+        [productId]: true
+      }))
+
+      setReviewMessages((prev) => ({
+        ...prev,
+        [productId]: ''
+      }))
+
+      const token = localStorage.getItem('token')
+
+      if (!token) {
+        throw new Error('Please login first.')
+      }
+
+      const response = await fetch(
+        `${API_URL}/reviews/${productId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            rating: form.rating,
+            comment: form.comment.trim()
+          })
+        }
+      )
+
+      const data = await response.json()
+
+      if (!response.ok || !data.ok) {
+        throw new Error(
+          data.message || 'Unable to submit review.'
+        )
+      }
+
+      setReviewMessages((prev) => ({
+        ...prev,
+        [productId]: 'Your review was submitted successfully.'
+      }))
+
+      setReviewForms((prev) => ({
+        ...prev,
+        [productId]: {
+          rating: 5,
+          comment: ''
+        }
+      }))
+
+      setOpenReviews((prev) => ({
+        ...prev,
+        [productId]: false
+      }))
+    } catch (err) {
+      setReviewMessages((prev) => ({
+        ...prev,
+        [productId]: err.message || 'Unable to submit review.'
+      }))
+    } finally {
+      setReviewLoading((prev) => ({
+        ...prev,
+        [productId]: false
+      }))
+    }
+  }
+
   const formatPrice = (price) =>
     `Rs. ${Number(price || 0).toLocaleString('en-PK')}`
 
@@ -129,12 +262,9 @@ const MyOrders = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-[#faf9f6] flex items-center justify-center font-[Arial]">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-black border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-600 font-medium">
-            Loading your orders...
-          </p>
-        </div>
+        <p className="text-gray-600 font-medium">
+          Loading your orders...
+        </p>
       </div>
     )
   }
@@ -161,7 +291,7 @@ const MyOrders = () => {
         <button
           onClick={fetchOrders}
           disabled={loading}
-          className="flex items-center justify-center gap-2 px-5 py-3 bg-black text-white rounded-xl hover:bg-gray-800 transition disabled:opacity-50"
+          className="flex items-center justify-center gap-2 px-5 py-3 bg-black text-white rounded-xl disabled:opacity-50"
         >
           <FiRefreshCw size={17} />
           Refresh Orders
@@ -227,7 +357,7 @@ const MyOrders = () => {
 
             <Link
               to="/mobiles"
-              className="inline-block mt-5 px-6 py-3 bg-black text-white rounded-xl text-sm font-semibold hover:bg-gray-800 transition"
+              className="inline-block mt-5 px-6 py-3 bg-black text-white rounded-xl text-sm font-semibold"
             >
               Shop Now
             </Link>
@@ -249,7 +379,7 @@ const MyOrders = () => {
                 }`}
               >
                 {isVIP && (
-                  <div className="h-1 bg-gradient-to-r from-[#9b6b16] via-[#f2d47e] to-[#9b6b16]" />
+                  <div className="h-1 bg-[#d6ad50]" />
                 )}
 
                 <div className="p-5 md:p-7">
@@ -295,36 +425,146 @@ const MyOrders = () => {
 
                   {/* PRODUCTS */}
                   <div className="space-y-4">
-                    {(order.orderItems || []).map((item, itemIndex) => (
-                      <div
-                        key={item._id || itemIndex}
-                        className="flex items-center gap-4 border-b border-gray-100 pb-4 last:border-0"
-                      >
-                        <img
-                          src={
-                            item.image ||
-                            item.product?.images?.[0] ||
-                            'https://placehold.co/100x100?text=Product'
-                          }
-                          alt={item.name || 'Product'}
-                          className="w-20 h-20 object-cover rounded-xl bg-gray-100"
-                        />
+                    {(order.orderItems || []).map((item, itemIndex) => {
+                      const productId = getProductId(item)
+                      const isReviewOpen = openReviews[productId]
+                      const isReviewLoading = reviewLoading[productId]
+                      const reviewMessage = reviewMessages[productId]
+                      const reviewForm = reviewForms[productId] || {
+                        rating: 5,
+                        comment: ''
+                      }
 
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-800 truncate">
-                            {item.name || item.product?.name || 'Product'}
-                          </h3>
+                      return (
+                        <div
+                          key={item._id || itemIndex}
+                          className="border-b border-gray-100 pb-4 last:border-0"
+                        >
+                          <div className="flex items-center gap-4">
+                            <img
+                              src={
+                                item.image ||
+                                item.product?.images?.[0] ||
+                                'https://placehold.co/100x100?text=Product'
+                              }
+                              alt={item.name || 'Product'}
+                              className="w-20 h-20 object-cover rounded-xl bg-gray-100"
+                            />
 
-                          <p className="text-sm text-gray-500 mt-1">
-                            Quantity: {item.quantity}
-                          </p>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-800 truncate">
+                                {item.name || item.product?.name || 'Product'}
+                              </h3>
+
+                              <p className="text-sm text-gray-500 mt-1">
+                                Quantity: {item.quantity}
+                              </p>
+                            </div>
+
+                            <p className="font-semibold text-gray-800 text-sm whitespace-nowrap">
+                              {formatPrice(item.price)}
+                            </p>
+                          </div>
+
+                          {/* PRODUCT REVIEW */}
+                          {status === 'Delivered' && productId && (
+                            <div className="mt-4">
+                              <button
+                                type="button"
+                                onClick={() => toggleReview(productId)}
+                                className="px-4 py-2 rounded-lg bg-[#f5f1e8] text-[#80632f] text-sm font-semibold"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <FiStar />
+                                  {isReviewOpen ? 'Close Review' : 'Write / Update Review'}
+                                </span>
+                              </button>
+
+                              {isReviewOpen && (
+                                <div className="mt-4 bg-[#faf9f6] border border-gray-200 rounded-xl p-4">
+                                  <h4 className="font-bold text-gray-900 mb-3">
+                                    Rate this product
+                                  </h4>
+
+                                  <div className="flex items-center gap-2 mb-4">
+                                    {[1, 2, 3, 4, 5].map((star) => (
+                                      <button
+                                        key={star}
+                                        type="button"
+                                        onClick={() =>
+                                          handleReviewChange(
+                                            productId,
+                                            'rating',
+                                            star
+                                          )
+                                        }
+                                        className="p-1"
+                                        aria-label={`Rate ${star} stars`}
+                                      >
+                                        <FiStar
+                                          size={25}
+                                          className={
+                                            star <= reviewForm.rating
+                                              ? 'text-[#d6ad50] fill-[#d6ad50]'
+                                              : 'text-gray-300'
+                                          }
+                                        />
+                                      </button>
+                                    ))}
+                                  </div>
+
+                                  <textarea
+                                    value={reviewForm.comment}
+                                    onChange={(e) =>
+                                      handleReviewChange(
+                                        productId,
+                                        'comment',
+                                        e.target.value
+                                      )
+                                    }
+                                    placeholder="Write your product review..."
+                                    maxLength={1000}
+                                    rows={4}
+                                    className="w-full border border-gray-200 rounded-xl p-3 outline-none focus:border-black resize-none text-sm"
+                                  />
+
+                                  <div className="text-right text-xs text-gray-400 mt-1">
+                                    {reviewForm.comment.length}/1000
+                                  </div>
+
+                                  {reviewMessage && (
+                                    <p className={`text-sm mt-3 ${
+                                      reviewMessage.includes('successfully')
+                                        ? 'text-green-600'
+                                        : 'text-red-600'
+                                    }`}>
+                                      {reviewMessage}
+                                    </p>
+                                  )}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSubmitReview(productId)}
+                                    disabled={isReviewLoading}
+                                    className="mt-4 px-6 py-3 bg-black text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                                  >
+                                    {isReviewLoading
+                                      ? 'Submitting...'
+                                      : 'Submit Review'}
+                                  </button>
+                                </div>
+                              )}
+
+                              {!isReviewOpen && reviewMessage && (
+                                <p className="text-sm text-green-600 mt-2">
+                                  {reviewMessage}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
-
-                        <p className="font-semibold text-gray-800 text-sm whitespace-nowrap">
-                          {formatPrice(item.price)}
-                        </p>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
 
                   {/* ORDER FOOTER */}
@@ -381,7 +621,7 @@ const MyOrders = () => {
                       <button
                         onClick={() => handleCancelOrder(order._id)}
                         disabled={isProcessing}
-                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition disabled:opacity-50"
+                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold disabled:opacity-50"
                       >
                         {isProcessing ? 'Please wait...' : 'Cancel Order'}
                       </button>
@@ -391,7 +631,7 @@ const MyOrders = () => {
                       <button
                         onClick={() => handleDeleteOrder(order._id)}
                         disabled={isProcessing}
-                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold hover:bg-red-50 transition flex items-center gap-2 disabled:opacity-50"
+                        className="px-5 py-2.5 rounded-xl border border-red-200 text-red-600 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
                       >
                         <FiTrash2 />
                         {isProcessing ? 'Please wait...' : 'Delete Order'}
@@ -401,7 +641,7 @@ const MyOrders = () => {
                     {status === 'Delivered' && (
                       <Link
                         to="/lucky-spin"
-                        className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#9b6b16] via-[#d6ad50] to-[#9b6b16] text-white text-sm font-bold flex items-center gap-2 hover:brightness-95 transition"
+                        className="px-6 py-3 rounded-xl bg-[#b58a35] text-white text-sm font-bold flex items-center gap-2"
                       >
                         <FiGift size={18} />
                         <span>Spin Now</span>
