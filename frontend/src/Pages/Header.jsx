@@ -37,12 +37,12 @@ const Header = () => {
   const [search, setSearch] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
-  const [searchAnimation, setSearchAnimation] = useState(false)
+
+  const [showSearchAnimation, setShowSearchAnimation] = useState(false)
   const [searchStatus, setSearchStatus] = useState('searching')
-  const [searchedQuery, setSearchedQuery] = useState('')
 
   const navigate = useNavigate()
-  const animationTimer = useRef(null)
+  const searchRequest = useRef(0)
 
   const cartItems = useSelector(
     (state) => state.cart.cartItems
@@ -65,44 +65,61 @@ const Header = () => {
     0
   )
 
+  // Live search animation and API check
   useEffect(() => {
-    return () => {
-      if (animationTimer.current) {
-        clearTimeout(animationTimer.current)
-      }
-    }
-  }, [])
+    const query = search.trim()
 
-  const handleSearch = async (e) => {
+    if (!query) {
+      setShowSearchAnimation(false)
+      setSearchStatus('searching')
+      return
+    }
+
+    setShowSearchAnimation(true)
+    setSearchStatus('searching')
+
+    const currentRequest = ++searchRequest.current
+
+    const timer = setTimeout(async () => {
+      try {
+        const response = await searchProducts(query)
+
+        if (currentRequest !== searchRequest.current) return
+
+        const products =
+          response?.products ||
+          response?.data?.products ||
+          []
+
+        setSearchStatus(
+          products.length > 0 ? 'found' : 'notFound'
+        )
+      } catch (error) {
+        if (currentRequest !== searchRequest.current) return
+
+        console.error('Search error:', error)
+        setSearchStatus('error')
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const handleSearch = (e) => {
     e.preventDefault()
 
     const query = search.trim()
 
-    if (!query || searchAnimation) return
+    if (!query) return
 
-    setSearchedQuery(query)
-    setSearchAnimation(true)
-    setSearchStatus('searching')
+    setShowSearchAnimation(false)
     setMenuOpen(false)
 
-    try {
-      const response = await searchProducts(query)
+    navigate(`/search?q=${encodeURIComponent(query)}`)
+  }
 
-      const products =
-        response?.products ||
-        response?.data?.products ||
-        []
-
-      setSearchStatus(products.length > 0 ? 'found' : 'notFound')
-    } catch (error) {
-      console.error('Search error:', error)
-      setSearchStatus('error')
-    }
-
-    animationTimer.current = setTimeout(() => {
-      setSearchAnimation(false)
-      navigate(`/search?q=${encodeURIComponent(query)}`)
-    }, 3000)
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value)
   }
 
   const closeMenu = () => {
@@ -116,8 +133,68 @@ const Header = () => {
 
   return (
     <>
+      <style>{`
+        @keyframes salesmanMove {
+          0%, 100% { transform: translateX(0); }
+          35% { transform: translateX(-12px); }
+          65% { transform: translateX(-5px); }
+        }
+
+        @keyframes salesmanArm {
+          0%, 100% { transform: rotate(-12deg); }
+          50% { transform: rotate(35deg); }
+        }
+
+        @keyframes phoneSearch {
+          0%, 100% { transform: translateY(0); opacity: .65; }
+          50% { transform: translateY(-7px); opacity: 1; }
+        }
+
+        @keyframes foundAnimation {
+          0% { transform: translateY(12px) scale(.7); opacity: 0; }
+          100% { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        @keyframes messageAnimation {
+          from { opacity: 0; transform: translateY(7px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .salesman-move {
+          animation: salesmanMove 2s ease-in-out infinite;
+        }
+
+        .salesman-arm {
+          transform-origin: top center;
+          animation: salesmanArm 1s ease-in-out infinite;
+        }
+
+        .phone-search {
+          animation: phoneSearch 1s ease-in-out infinite;
+        }
+
+        .found-animation {
+          animation: foundAnimation .4s ease-out both;
+        }
+
+        .message-animation {
+          animation: messageAnimation .3s ease-out both;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .salesman-move,
+          .salesman-arm,
+          .phone-search,
+          .found-animation,
+          .message-animation {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
       <header className="relative z-40 w-full bg-white font-[Arial,sans-serif] shadow-sm">
 
+        {/* Top Header */}
         <div className="border-b border-gray-100">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4">
 
@@ -131,6 +208,7 @@ const Header = () => {
               </span>
             </Link>
 
+            {/* Desktop Search */}
             <form
               onSubmit={handleSearch}
               className="hidden max-w-xl flex-1 items-center rounded-lg border border-gray-200 bg-gray-50 px-4 md:flex"
@@ -141,19 +219,19 @@ const Header = () => {
                 type="text"
                 placeholder="Search mobile phones, brands..."
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={handleSearchChange}
                 className="h-12 w-full bg-transparent px-3 text-sm outline-none"
               />
 
               <button
                 type="submit"
-                disabled={searchAnimation}
-                className="rounded-md bg-black px-5 py-2 text-sm font-semibold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md bg-black px-5 py-2 text-sm font-semibold text-white transition hover:bg-amber-600"
               >
                 Search
               </button>
             </form>
 
+            {/* Header Actions */}
             <div className="flex items-center gap-5">
 
               {!isLoggedIn && (
@@ -231,7 +309,6 @@ const Header = () => {
                 className="relative flex items-center gap-2 text-sm font-semibold text-gray-700 transition hover:text-amber-600"
               >
                 <FiShoppingCart size={22} />
-
                 <span className="hidden sm:inline">Cart</span>
 
                 <span className="absolute -right-3 -top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white">
@@ -250,6 +327,7 @@ const Header = () => {
           </div>
         </div>
 
+        {/* Mobile Search */}
         <div className="px-4 py-3 md:hidden">
           <form
             onSubmit={handleSearch}
@@ -261,20 +339,20 @@ const Header = () => {
               type="text"
               placeholder="Search mobile phones..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
               className="h-11 w-full bg-transparent px-3 text-sm outline-none"
             />
 
             <button
               type="submit"
-              disabled={searchAnimation}
-              className="text-xs font-bold text-black disabled:opacity-50"
+              className="text-xs font-bold text-black"
             >
               Search
             </button>
           </form>
         </div>
 
+        {/* Navigation */}
         <nav className="hidden border-t border-gray-100 md:block">
           <div className="mx-auto flex max-w-7xl items-center justify-between gap-5 overflow-x-auto px-4">
 
@@ -304,6 +382,7 @@ const Header = () => {
           </div>
         </nav>
 
+        {/* Mobile Menu */}
         {menuOpen && (
           <div className="border-t border-gray-100 bg-white px-5 py-4 md:hidden">
             <div className="flex flex-col gap-1">
@@ -433,124 +512,52 @@ const Header = () => {
         )}
       </header>
 
-      {/* Search Animation */}
-      {searchAnimation && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <style>{`
-            @keyframes searchPerson {
-              0% { transform: translateX(-75px); }
-              35% { transform: translateX(0); }
-              65% { transform: translateX(12px); }
-              100% { transform: translateX(0); }
-            }
+      {/* Live Search Animation Panel */}
+      {showSearchAnimation && (
+        <div className="pointer-events-none fixed bottom-5 right-5 z-[90] w-[min(340px,calc(100%-40px))]">
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
 
-            @keyframes searchArm {
-              0%, 100% { transform: rotate(-15deg); }
-              50% { transform: rotate(35deg); }
-            }
-
-            @keyframes shelfPhone {
-              0%, 45% { opacity: 0.45; transform: translateY(0); }
-              65% { opacity: 1; transform: translateY(-12px); }
-              100% { opacity: 1; transform: translateY(-5px); }
-            }
-
-            @keyframes searchPulse {
-              0%, 100% { opacity: 0.35; }
-              50% { opacity: 1; }
-            }
-
-            @keyframes foundPhone {
-              0% { transform: translateY(20px) scale(0.7); opacity: 0; }
-              100% { transform: translateY(0) scale(1); opacity: 1; }
-            }
-
-            @keyframes speechPop {
-              0% { transform: scale(0.7); opacity: 0; }
-              100% { transform: scale(1); opacity: 1; }
-            }
-
-            @keyframes walkDots {
-              0%, 100% { opacity: 0.2; }
-              50% { opacity: 1; }
-            }
-
-            .search-person {
-              animation: searchPerson 2.2s ease-in-out infinite;
-            }
-
-            .search-arm {
-              transform-origin: top center;
-              animation: searchArm 1.1s ease-in-out infinite;
-            }
-
-            .shelf-phone {
-              animation: searchPulse 1s ease-in-out infinite;
-            }
-
-            .found-phone {
-              animation: foundPhone 0.6s ease-out both;
-            }
-
-            .speech-pop {
-              animation: speechPop 0.45s ease-out both;
-            }
-
-            .walk-dot {
-              animation: walkDots 0.8s infinite;
-            }
-
-            .walk-dot:nth-child(2) { animation-delay: 0.2s; }
-            .walk-dot:nth-child(3) { animation-delay: 0.4s; }
-
-            @media (prefers-reduced-motion: reduce) {
-              .search-person, .search-arm, .shelf-phone,
-              .found-phone, .speech-pop, .walk-dot {
-                animation: none !important;
-              }
-            }
-          `}</style>
-
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-[#f7f6f2] shadow-2xl">
-
-            <div className="border-b border-gray-200 bg-white px-5 py-4 text-center">
-              <div className="text-lg font-extrabold text-black">
-                Mobile<span className="text-amber-600">Spot</span>
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <div>
+                <p className="text-sm font-extrabold text-black">
+                  Mobile<span className="text-amber-600">Spot</span>
+                </p>
+                <p className="text-[10px] text-gray-400">
+                  Live shelf search
+                </p>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Checking our mobile collection
-              </p>
+
+              <span className="rounded-full bg-amber-50 px-3 py-1 text-[10px] font-bold text-amber-700">
+                LIVE SEARCH
+              </span>
             </div>
 
-            <div className="px-5 pb-6 pt-5">
+            <div className="bg-[#f7f6f2] p-4">
 
-              <div className="mb-5 text-center">
-                <p className="text-xs font-semibold uppercase tracking-[2px] text-gray-400">
-                  Customer is looking for
-                </p>
-                <h3 className="mt-2 text-xl font-extrabold text-black">
-                  {searchedQuery}
-                </h3>
-              </div>
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                Customer is searching for
+              </p>
 
-              {/* Shop shelf */}
-              <div className="relative mx-auto h-48 max-w-[310px] rounded-xl bg-[#e9e4d9] p-3">
+              <p className="mb-4 truncate text-base font-extrabold text-black">
+                {search}
+              </p>
+
+              {/* Shelf scene */}
+              <div className="relative h-36 overflow-hidden rounded-xl bg-[#e9e2d5]">
 
                 <div className="absolute left-3 right-3 top-5 h-1.5 rounded-full bg-[#b9ad9b]" />
+                <div className="absolute left-3 right-3 top-[76px] h-1.5 rounded-full bg-[#b9ad9b]" />
+                <div className="absolute bottom-4 left-3 right-3 h-1.5 rounded-full bg-[#b9ad9b]" />
 
-                <div className="absolute left-3 right-3 top-[87px] h-1.5 rounded-full bg-[#b9ad9b]" />
-
-                <div className="absolute bottom-5 left-3 right-3 h-1.5 rounded-full bg-[#b9ad9b]" />
-
-                {/* Phones on shelf */}
-                <div className="absolute left-7 top-7 flex items-end gap-3">
-                  {[0, 1, 2, 3].map((phone) => (
+                {/* Top shelf phones */}
+                <div className="absolute left-5 top-7 flex items-end gap-3">
+                  {[0, 1, 2, 3, 4].map((phone) => (
                     <div
                       key={phone}
-                      className={`h-12 w-6 rounded-md border-2 border-gray-500 bg-gray-800 ${
+                      className={`h-10 w-5 rounded-md border-2 border-gray-500 bg-gray-800 ${
                         searchStatus === 'found' && phone === 2
-                          ? 'found-phone border-amber-500 bg-amber-500'
-                          : 'shelf-phone'
+                          ? 'found-animation border-amber-500 bg-amber-500'
+                          : 'phone-search'
                       }`}
                       style={{ animationDelay: `${phone * 0.15}s` }}
                     >
@@ -559,11 +566,12 @@ const Header = () => {
                   ))}
                 </div>
 
-                <div className="absolute bottom-7 left-7 flex items-end gap-3">
-                  {[0, 1, 2, 3, 4].map((phone) => (
+                {/* Bottom shelf phones */}
+                <div className="absolute bottom-6 left-5 flex items-end gap-3">
+                  {[0, 1, 2, 3, 4, 5].map((phone) => (
                     <div
                       key={phone}
-                      className="h-12 w-6 rounded-md border-2 border-gray-500 bg-gray-700"
+                      className="h-9 w-5 rounded-md border-2 border-gray-500 bg-gray-700"
                     >
                       <div className="mx-auto mt-1 h-1 w-2 rounded-full bg-gray-400" />
                     </div>
@@ -571,108 +579,89 @@ const Header = () => {
                 </div>
 
                 {/* Salesman */}
-                <div className="search-person absolute -right-1 bottom-5 z-10 flex flex-col items-center">
-                  <div className="relative mb-1 h-9 w-9 rounded-full border-2 border-[#c28b61] bg-[#d9a47d]">
-                    <div className="absolute left-2 top-3 h-1 w-1 rounded-full bg-black" />
-                    <div className="absolute right-2 top-3 h-1 w-1 rounded-full bg-black" />
-                    <div className="absolute bottom-1 left-3 h-1 w-3 rounded-full border-b border-black" />
-                    <div className="absolute -top-1 left-0 h-3 w-9 rounded-t-full bg-[#29231f]" />
+                <div className="salesman-move absolute bottom-4 right-5 z-10 flex flex-col items-center">
+
+                  <div className="relative mb-1 h-7 w-7 rounded-full border border-[#c28b61] bg-[#d9a47d]">
+                    <div className="absolute left-1.5 top-2 h-1 w-1 rounded-full bg-black" />
+                    <div className="absolute right-1.5 top-2 h-1 w-1 rounded-full bg-black" />
+                    <div className="absolute bottom-1 left-2 h-1 w-3 rounded-full border-b border-black" />
+                    <div className="absolute -top-1 left-0 h-2 w-7 rounded-t-full bg-[#29231f]" />
                   </div>
 
-                  <div className="relative h-14 w-12 rounded-t-xl bg-[#1f2937]">
-                    <div className="absolute left-4 top-0 h-6 w-4 rounded-b bg-white" />
-                    <div className="search-arm absolute -left-2 top-2 h-8 w-3 rounded-full bg-[#d9a47d]" />
-                    <div className="absolute -right-2 top-2 h-8 w-3 rounded-full bg-[#d9a47d]" />
+                  <div className="relative h-11 w-9 rounded-t-lg bg-[#1f2937]">
+                    <div className="absolute left-3 top-0 h-5 w-3 rounded-b bg-white" />
+                    <div className="salesman-arm absolute -left-2 top-1 h-7 w-2.5 rounded-full bg-[#d9a47d]" />
+                    <div className="absolute -right-2 top-1 h-7 w-2.5 rounded-full bg-[#d9a47d]" />
                   </div>
 
-                  <div className="flex gap-2">
-                    <div className="h-5 w-3 rounded-b bg-black" />
-                    <div className="h-5 w-3 rounded-b bg-black" />
+                  <div className="flex gap-1.5">
+                    <div className="h-4 w-2.5 rounded-b bg-black" />
+                    <div className="h-4 w-2.5 rounded-b bg-black" />
                   </div>
                 </div>
-
-                {searchStatus === 'searching' && (
-                  <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1">
-                    <span className="walk-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
-                    <span className="walk-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
-                    <span className="walk-dot h-1.5 w-1.5 rounded-full bg-amber-600" />
-                  </div>
-                )}
               </div>
 
-              {/* Status message */}
-              <div className="mt-6 min-h-[78px] text-center">
+              {/* Result status */}
+              <div className="message-animation mt-4 min-h-[48px]">
 
                 {searchStatus === 'searching' && (
-                  <div className="speech-pop">
-                    <p className="text-base font-bold text-black">
-                      Salesman is checking the shelves...
-                    </p>
-                    <p className="mt-2 text-sm text-gray-500">
-                      Please wait, finding your phone
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-amber-500" />
+                    <p className="text-xs font-bold text-gray-700">
+                      Salesman shelf par phone dhoond raha hai...
                     </p>
                   </div>
                 )}
 
                 {searchStatus === 'found' && (
-                  <div className="speech-pop">
-                    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-green-100 text-green-700">
-                      <FiCheck size={22} />
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-green-100 text-green-700">
+                      <FiCheck size={17} />
+                    </span>
+                    <div>
+                      <p className="text-sm font-extrabold text-green-700">
+                        Boss, mil gaya!
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        Matching phone found in our collection.
+                      </p>
                     </div>
-                    <p className="text-base font-extrabold text-green-700">
-                      Boss, mil gaya!
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Your searched phone is available.
-                    </p>
                   </div>
                 )}
 
                 {searchStatus === 'notFound' && (
-                  <div className="speech-pop">
-                    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-red-100 text-red-600">
-                      <FiX size={22} />
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
+                      <FiX size={17} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-extrabold text-red-600">
+                        Boss, yeh phone hamare paas nahi hai.
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        No matching phone found.
+                      </p>
                     </div>
-                    <p className="text-base font-extrabold text-red-600">
-                      Boss, yeh phone hamare paas nahi hai.
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Showing matching search results.
-                    </p>
                   </div>
                 )}
 
                 {searchStatus === 'error' && (
-                  <div className="speech-pop">
-                    <div className="mx-auto mb-2 flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700">
-                      <FiAlertCircle size={21} />
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                      <FiAlertCircle size={17} />
+                    </span>
+                    <div>
+                      <p className="text-xs font-extrabold text-gray-800">
+                        Boss, abhi check nahi ho saka.
+                      </p>
+                      <p className="text-[11px] text-gray-500">
+                        Please check the search results.
+                      </p>
                     </div>
-                    <p className="text-base font-extrabold text-black">
-                      Boss, abhi check nahi ho saka.
-                    </p>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Opening search results for you.
-                    </p>
                   </div>
                 )}
 
               </div>
-
-              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-gray-200">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    searchStatus === 'notFound'
-                      ? 'bg-red-500'
-                      : searchStatus === 'error'
-                        ? 'bg-amber-500'
-                        : 'bg-green-600'
-                  }`}
-                  style={{
-                    width: searchStatus === 'searching' ? '45%' : '100%'
-                  }}
-                />
-              </div>
-
             </div>
           </div>
         </div>
