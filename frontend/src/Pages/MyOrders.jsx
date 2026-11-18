@@ -81,6 +81,7 @@ const MyOrders = () => {
 
     try {
       setActionLoading(orderId)
+
       await cancelMyOrder(orderId)
 
       setOrders((prev) =>
@@ -106,6 +107,7 @@ const MyOrders = () => {
 
     try {
       setActionLoading(orderId)
+
       await deleteMyOrder(orderId)
 
       setOrders((prev) =>
@@ -126,31 +128,37 @@ const MyOrders = () => {
     return item.product
   }
 
-  const toggleReview = (productId) => {
+  // Har order aur product ki separate review key
+  const getReviewKey = (orderId, productId) =>
+    `${orderId}_${productId}`
+
+  const toggleReview = (reviewKey) => {
     setOpenReviews((prev) => ({
       ...prev,
-      [productId]: !prev[productId]
+      [reviewKey]: !prev[reviewKey]
     }))
 
     setReviewMessages((prev) => ({
       ...prev,
-      [productId]: ''
+      [reviewKey]: ''
     }))
   }
 
-  const handleReviewChange = (productId, field, value) => {
+  const handleReviewChange = (reviewKey, field, value) => {
     setReviewForms((prev) => ({
       ...prev,
-      [productId]: {
-        rating: prev[productId]?.rating || 5,
-        comment: prev[productId]?.comment || '',
+      [reviewKey]: {
+        rating: prev[reviewKey]?.rating || 5,
+        comment: prev[reviewKey]?.comment || '',
         [field]: value
       }
     }))
   }
 
-  const handleSubmitReview = async (productId) => {
-    const form = reviewForms[productId] || {
+  const handleSubmitReview = async (orderId, productId) => {
+    const reviewKey = getReviewKey(orderId, productId)
+
+    const form = reviewForms[reviewKey] || {
       rating: 5,
       comment: ''
     }
@@ -158,7 +166,7 @@ const MyOrders = () => {
     if (!form.comment.trim() || form.comment.trim().length < 3) {
       setReviewMessages((prev) => ({
         ...prev,
-        [productId]: 'Please write at least 3 characters.'
+        [reviewKey]: 'Please write at least 3 characters.'
       }))
       return
     }
@@ -166,7 +174,7 @@ const MyOrders = () => {
     if (form.comment.trim().length > 1000) {
       setReviewMessages((prev) => ({
         ...prev,
-        [productId]: 'Review cannot exceed 1000 characters.'
+        [reviewKey]: 'Review cannot exceed 1000 characters.'
       }))
       return
     }
@@ -174,12 +182,12 @@ const MyOrders = () => {
     try {
       setReviewLoading((prev) => ({
         ...prev,
-        [productId]: true
+        [reviewKey]: true
       }))
 
       setReviewMessages((prev) => ({
         ...prev,
-        [productId]: ''
+        [reviewKey]: ''
       }))
 
       const token = localStorage.getItem('token')
@@ -197,6 +205,7 @@ const MyOrders = () => {
             Authorization: `Bearer ${token}`
           },
           body: JSON.stringify({
+            orderId,
             rating: form.rating,
             comment: form.comment.trim()
           })
@@ -213,12 +222,12 @@ const MyOrders = () => {
 
       setReviewMessages((prev) => ({
         ...prev,
-        [productId]: 'Your review was submitted successfully.'
+        [reviewKey]: 'Your review was submitted successfully.'
       }))
 
       setReviewForms((prev) => ({
         ...prev,
-        [productId]: {
+        [reviewKey]: {
           rating: 5,
           comment: ''
         }
@@ -226,17 +235,17 @@ const MyOrders = () => {
 
       setOpenReviews((prev) => ({
         ...prev,
-        [productId]: false
+        [reviewKey]: false
       }))
     } catch (err) {
       setReviewMessages((prev) => ({
         ...prev,
-        [productId]: err.message || 'Unable to submit review.'
+        [reviewKey]: err.message || 'Unable to submit review.'
       }))
     } finally {
       setReviewLoading((prev) => ({
         ...prev,
-        [productId]: false
+        [reviewKey]: false
       }))
     }
   }
@@ -378,9 +387,7 @@ const MyOrders = () => {
                     : 'border-gray-100 shadow-sm'
                 }`}
               >
-                {isVIP && (
-                  <div className="h-1 bg-[#d6ad50]" />
-                )}
+                {isVIP && <div className="h-1 bg-[#d6ad50]" />}
 
                 <div className="p-5 md:p-7">
 
@@ -427,10 +434,17 @@ const MyOrders = () => {
                   <div className="space-y-4">
                     {(order.orderItems || []).map((item, itemIndex) => {
                       const productId = getProductId(item)
-                      const isReviewOpen = openReviews[productId]
-                      const isReviewLoading = reviewLoading[productId]
-                      const reviewMessage = reviewMessages[productId]
-                      const reviewForm = reviewForms[productId] || {
+
+                      const reviewKey = getReviewKey(
+                        order._id,
+                        productId
+                      )
+
+                      const isReviewOpen = openReviews[reviewKey]
+                      const isReviewLoading = reviewLoading[reviewKey]
+                      const reviewMessage = reviewMessages[reviewKey]
+
+                      const reviewForm = reviewForms[reviewKey] || {
                         rating: 5,
                         comment: ''
                       }
@@ -471,12 +485,12 @@ const MyOrders = () => {
                             <div className="mt-4">
                               <button
                                 type="button"
-                                onClick={() => toggleReview(productId)}
+                                onClick={() => toggleReview(reviewKey)}
                                 className="px-4 py-2 rounded-lg bg-[#f5f1e8] text-[#80632f] text-sm font-semibold"
                               >
                                 <span className="flex items-center gap-2">
                                   <FiStar />
-                                  {isReviewOpen ? 'Close Review' : 'Write / Update Review'}
+                                  {isReviewOpen ? 'Close Review' : 'Write Review'}
                                 </span>
                               </button>
 
@@ -493,7 +507,7 @@ const MyOrders = () => {
                                         type="button"
                                         onClick={() =>
                                           handleReviewChange(
-                                            productId,
+                                            reviewKey,
                                             'rating',
                                             star
                                           )
@@ -517,7 +531,7 @@ const MyOrders = () => {
                                     value={reviewForm.comment}
                                     onChange={(e) =>
                                       handleReviewChange(
-                                        productId,
+                                        reviewKey,
                                         'comment',
                                         e.target.value
                                       )
@@ -533,18 +547,22 @@ const MyOrders = () => {
                                   </div>
 
                                   {reviewMessage && (
-                                    <p className={`text-sm mt-3 ${
-                                      reviewMessage.includes('successfully')
-                                        ? 'text-green-600'
-                                        : 'text-red-600'
-                                    }`}>
+                                    <p
+                                      className={`text-sm mt-3 ${
+                                        reviewMessage.includes('successfully')
+                                          ? 'text-green-600'
+                                          : 'text-red-600'
+                                      }`}
+                                    >
                                       {reviewMessage}
                                     </p>
                                   )}
 
                                   <button
                                     type="button"
-                                    onClick={() => handleSubmitReview(productId)}
+                                    onClick={() =>
+                                      handleSubmitReview(order._id, productId)
+                                    }
                                     disabled={isReviewLoading}
                                     className="mt-4 px-6 py-3 bg-black text-white rounded-xl text-sm font-semibold disabled:opacity-50"
                                   >
@@ -616,7 +634,6 @@ const MyOrders = () => {
 
                   {/* ACTIONS */}
                   <div className="flex flex-wrap gap-3 mt-6">
-
                     {['Pending', 'Processing'].includes(status) && (
                       <button
                         onClick={() => handleCancelOrder(order._id)}
@@ -647,7 +664,6 @@ const MyOrders = () => {
                         <span>Spin Now</span>
                       </Link>
                     )}
-
                   </div>
                 </div>
               </div>

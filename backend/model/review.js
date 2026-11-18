@@ -41,9 +41,9 @@ const reviewSchema = new mongoose.Schema(
   }
 )
 
-// One customer can review a product only once
+// One review per product per order
 reviewSchema.index(
-  { product: 1, user: 1 },
+  { product: 1, user: 1, order: 1 },
   { unique: true }
 )
 

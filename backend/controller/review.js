@@ -57,7 +57,7 @@ export const getProductReviews = async (req, res) => {
   }
 }
 
-// Create or Update Product Review
+// Create Product Review
 export const createProductReview = async (req, res) => {
   try {
     const { productId } = req.params
@@ -106,55 +106,51 @@ export const createProductReview = async (req, res) => {
       })
     }
 
-    // Check whether customer has a delivered order
-    const deliveredOrder = await Order.findOne({
+    // Find a delivered order containing this product
+    const deliveredOrders = await Order.find({
       user: req.user._id,
       orderStatus: 'Delivered',
       'orderItems.product': productId
     }).sort({ deliveredAt: -1, updatedAt: -1 })
 
-    if (!deliveredOrder) {
+    if (!deliveredOrders.length) {
       return res.status(403).json({
         ok: false,
         message: 'You can review this product only after delivery.'
       })
     }
 
-    const filter = {
+    // Find an order that has not been reviewed yet
+    const reviewedOrders = await Review.distinct('order', {
       product: productId,
       user: req.user._id
-    }
+    })
 
-    const update = {
-      $set: {
-        rating: numericRating,
-        comment: comment.trim(),
-        order: deliveredOrder._id
-      }
-    }
+    const reviewedOrderIds = new Set(
+      reviewedOrders.map((id) => id.toString())
+    )
 
-    let review
+    const availableOrder = deliveredOrders.find(
+      (order) => !reviewedOrderIds.has(order._id.toString())
+    )
 
-    try {
-      review = await Review.findOneAndUpdate(filter, update, {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true
-      })
-    } catch (error) {
-      // Handle simultaneous duplicate submissions
-      if (error.code !== 11000) {
-        throw error
-      }
-
-      review = await Review.findOneAndUpdate(filter, update, {
-        new: true,
-        runValidators: true
+    if (!availableOrder) {
+      return res.status(409).json({
+        ok: false,
+        message: 'You have already reviewed all delivered purchases of this product.'
       })
     }
 
-    // Update product's average rating
+    // Create a separate review for this order
+    const review = await Review.create({
+      product: productId,
+      user: req.user._id,
+      order: availableOrder._id,
+      rating: numericRating,
+      comment: comment.trim()
+    })
+
+    // Calculate average rating from all reviews
     const stats = await Review.aggregate([
       {
         $match: {
@@ -164,7 +160,9 @@ export const createProductReview = async (req, res) => {
       {
         $group: {
           _id: null,
-          averageRating: { $avg: '$rating' }
+          averageRating: {
+            $avg: '$rating'
+          }
         }
       }
     ])
@@ -180,13 +178,20 @@ export const createProductReview = async (req, res) => {
     const populatedReview = await Review.findById(review._id)
       .populate('user', 'name')
 
-    return res.status(200).json({
+    return res.status(201).json({
       ok: true,
       message: 'Review submitted successfully.',
       review: populatedReview,
       averageRating
     })
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        ok: false,
+        message: 'This purchase has already been reviewed.'
+      })
+    }
+
     console.error('Create product review error:', error.message)
 
     return res.status(500).json({
