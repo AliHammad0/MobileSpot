@@ -42,22 +42,20 @@ const Product = () => {
   const [selectedPrice, setSelectedPrice] = useState('')
   const [expressOnly, setExpressOnly] = useState(false)
   const [inStockOnly, setInStockOnly] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
 
-  // Showroom
   const [selectedProduct, setSelectedProduct] = useState(null)
   const [showShowroom, setShowShowroom] = useState(false)
   const [showroomPhase, setShowroomPhase] = useState('instruction')
 
   const navigationTimer = useRef(null)
-  const phaseTimer = useRef([])
+  const phaseTimers = useRef([])
 
   const openProduct = (productId) => {
     if (!productId) return
     navigate(`/product/${productId}`)
   }
 
-  // User ke click kiye hue phone ko showroom mein select karna
+  // Selected product ka original database record showroom mein use hoga
   const handleViewDetails = (product) => {
     if (!product?._id || !product.inStock || showShowroom) return
 
@@ -65,26 +63,24 @@ const Product = () => {
       clearTimeout(navigationTimer.current)
     }
 
-    phaseTimer.current.forEach(clearTimeout)
-    phaseTimer.current = []
+    phaseTimers.current.forEach(clearTimeout)
+    phaseTimers.current = []
 
     setSelectedProduct(product)
     setShowroomPhase('instruction')
     setShowShowroom(true)
 
-    // Boss instruction ke baad salesman phone pick karega
-    phaseTimer.current.push(
+    phaseTimers.current.push(
       setTimeout(() => setShowroomPhase('picking'), 2600)
     )
 
-    phaseTimer.current.push(
-      setTimeout(() => setShowroomPhase('showing'), 4900)
+    phaseTimers.current.push(
+      setTimeout(() => setShowroomPhase('showing'), 5000)
     )
 
-    // Animation complete hone ke baad selected product open
     navigationTimer.current = setTimeout(() => {
       navigate(`/product/${product._id}`)
-    }, 7600)
+    }, 7800)
   }
 
   useEffect(() => {
@@ -93,7 +89,7 @@ const Product = () => {
         clearTimeout(navigationTimer.current)
       }
 
-      phaseTimer.current.forEach(clearTimeout)
+      phaseTimers.current.forEach(clearTimeout)
     }
   }, [])
 
@@ -130,25 +126,24 @@ const Product = () => {
     fetchProducts()
   }, [])
 
-  // Shelf par multiple phones. Selected phone hamesha include hoga.
+  // Showroom rack: multiple actual products from database
   const shelfProducts = useMemo(() => {
     if (!selectedProduct) return []
 
-    const otherProducts = products
-      .filter((product) => product._id !== selectedProduct._id)
-      .slice(0, 7)
+    const others = products
+      .filter((item) => item._id !== selectedProduct._id)
+      .slice(0, 11)
 
-    return [...otherProducts, selectedProduct]
+    return [...others, selectedProduct]
   }, [products, selectedProduct])
 
-  // Available Brands
   const brands = useMemo(() => {
     return [...new Set(
       products.map((product) => product.brand).filter(Boolean)
     )].sort()
   }, [products])
 
-  // Filter And Sort
+  // Filter and Sort
   const filteredProducts = useMemo(() => {
     const result = products.filter((product) => {
       const searchText = `${product.brand || ''} ${product.name || ''}`
@@ -218,157 +213,160 @@ const Product = () => {
     setSelectedPrice('')
     setExpressOnly(false)
     setInStockOnly(false)
-    setShowFilters(false)
   }
 
   return (
     <section className="min-h-screen bg-[#f7f6f2] px-4 py-8 font-[Arial,sans-serif] sm:px-6 lg:px-10">
 
       <style>{`
-        @keyframes showroomFade {
+        @keyframes sceneFade {
           from { opacity: 0; }
           to { opacity: 1; }
         }
 
-        @keyframes bossEnter {
-          from {
-            opacity: 0;
-            transform: translateX(-100px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
+        @keyframes ownerEnter {
+          from { opacity: 0; transform: translateX(-70px); }
+          to { opacity: 1; transform: translateX(0); }
         }
 
         @keyframes salesmanEnter {
-          from {
-            opacity: 0;
-            transform: translateX(100px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
+          from { opacity: 0; transform: translateX(70px); }
+          to { opacity: 1; transform: translateX(0); }
         }
 
-        @keyframes bossPoint {
-          0%, 35% { transform: rotate(-15deg); }
-          55%, 100% { transform: rotate(-62deg); }
+        @keyframes boxAppear {
+          from { opacity: 0; transform: translateY(15px) scale(.94); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes boxPick {
+          0% { transform: translate(0, 0) scale(1); opacity: 1; }
+          35% { transform: translate(25px, -35px) scale(1.08); opacity: 1; }
+          75% { transform: translate(95px, 90px) scale(.78); opacity: 1; }
+          100% { transform: translate(120px, 100px) scale(.72); opacity: 0; }
         }
 
         @keyframes salesmanReach {
           0%, 15% { transform: rotate(0deg); }
-          45%, 75% { transform: rotate(-75deg); }
-          100% { transform: rotate(-35deg); }
+          45%, 75% { transform: rotate(-65deg); }
+          100% { transform: rotate(-30deg); }
         }
 
-        @keyframes selectedPhonePick {
-          0%, 15% {
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
-          }
-          45% {
-            transform: translate(35px, -85px) scale(1.12);
-            opacity: 1;
-          }
-          75%, 100% {
-            transform: translate(80px, -110px) scale(.65);
-            opacity: 0;
-          }
+        @keyframes packageShow {
+          from { opacity: 0; transform: translateY(30px) scale(.65) rotate(-8deg); }
+          to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
         }
 
-        @keyframes heldPhoneAppear {
-          0%, 45% {
-            opacity: 0;
-            transform: translateY(25px) scale(.5) rotate(-15deg);
-          }
-          70%, 100% {
-            opacity: 1;
-            transform: translateY(0) scale(1) rotate(0deg);
-          }
+        @keyframes ownerPoint {
+          0%, 30% { transform: rotate(-10deg); }
+          60%, 100% { transform: rotate(-55deg); }
         }
 
-        @keyframes speechIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px) scale(.92);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-
-        @keyframes shelfPhoneEnter {
-          from {
-            opacity: 0;
-            transform: translateY(18px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes showroomPulse {
-          0%, 100% { box-shadow: 0 0 0 0 rgba(173, 140, 91, 0); }
-          50% { box-shadow: 0 0 0 5px rgba(173, 140, 91, .18); }
+        @keyframes bubbleIn {
+          from { opacity: 0; transform: translateY(8px) scale(.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .showroom-screen {
-          animation: showroomFade .4s ease both;
+          animation: sceneFade .4s ease both;
         }
 
-        .showroom-boss {
-          animation: bossEnter .9s cubic-bezier(.2,.8,.2,1) both;
+        .owner-character {
+          animation: ownerEnter .8s ease both;
         }
 
-        .showroom-salesman {
-          animation: salesmanEnter 1s cubic-bezier(.2,.8,.2,1) both;
+        .salesman-character {
+          animation: salesmanEnter .8s ease both;
         }
 
-        .boss-arm {
+        .owner-pointing-arm {
           transform-origin: 8px 8px;
-          animation: bossPoint 1.5s ease-in-out .8s both;
+          animation: ownerPoint 1.5s ease-in-out .6s both;
         }
 
-        .salesman-arm {
+        .salesman-reaching-arm {
           transform-origin: 8px 8px;
         }
 
-        .showroom-screen.phase-picking .salesman-arm,
-        .showroom-screen.phase-showing .salesman-arm {
-          animation: salesmanReach 2.2s ease-in-out both;
+        .phase-picking .salesman-reaching-arm,
+        .phase-showing .salesman-reaching-arm {
+          animation: salesmanReach 2s ease-in-out both;
         }
 
-        .showroom-phone-card {
-          animation: shelfPhoneEnter .65s ease both;
-        }
-
-        .selected-shelf-phone {
+        .phone-box {
           position: relative;
-          z-index: 10;
-          animation: showroomPulse 1.5s ease-in-out infinite;
+          min-width: 0;
+          height: 118px;
+          padding: 7px;
+          border-radius: 5px;
+          border: 1px solid #c8b99f;
+          background: linear-gradient(145deg, #fffefa, #e9e2d5);
+          box-shadow:
+            2px 3px 5px rgba(0,0,0,.13),
+            inset 0 0 0 3px rgba(255,255,255,.6);
+          animation: boxAppear .55s ease both;
         }
 
-        .phase-picking .selected-shelf-phone {
-          animation: selectedPhonePick 2.2s cubic-bezier(.45,0,.2,1) both;
+        .phone-box::before {
+          content: "";
+          position: absolute;
+          inset: 4px;
+          border: 1px solid rgba(150,125,85,.25);
+          border-radius: 3px;
+          pointer-events: none;
         }
 
-        .held-phone {
+        .phone-box-side {
+          position: absolute;
+          top: 3px;
+          right: -5px;
+          width: 5px;
+          height: calc(100% - 6px);
+          background: linear-gradient(90deg, #b5a17e, #887454);
+          transform: skewY(-4deg);
+          border-radius: 0 2px 2px 0;
+        }
+
+        .phone-box-top {
+          position: absolute;
+          top: -4px;
+          left: 3px;
+          right: 2px;
+          height: 5px;
+          background: #d8c9ae;
+          transform: skewX(-25deg);
+        }
+
+        .phone-box-image {
+          width: 100%;
+          height: 67px;
+          object-fit: contain;
+          mix-blend-mode: multiply;
+        }
+
+        .selected-box {
+          z-index: 20;
+          border: 2px solid #b58a4f;
+          box-shadow: 0 0 0 3px rgba(181,138,79,.2), 3px 5px 12px rgba(0,0,0,.18);
+        }
+
+        .phase-picking .selected-box {
+          animation: boxPick 2.4s cubic-bezier(.45,0,.2,1) forwards !important;
+        }
+
+        .picked-package {
           opacity: 0;
         }
 
-        .phase-showing .held-phone {
-          animation: heldPhoneAppear .8s ease-out both;
+        .phase-showing .picked-package {
+          animation: packageShow .7s ease-out .1s forwards;
         }
 
         .showroom-bubble {
-          animation: speechIn .45s ease both;
+          animation: bubbleIn .4s ease both;
         }
 
-        .showroom-person {
+        .shop-person {
           position: relative;
           width: 125px;
           height: 225px;
@@ -383,7 +381,7 @@ const Product = () => {
           border-radius: 50%;
           background: #c98c64;
           border: 2px solid #a56f4e;
-          z-index: 4;
+          z-index: 5;
         }
 
         .person-hair {
@@ -394,7 +392,7 @@ const Product = () => {
           height: 23px;
           border-radius: 25px 25px 5px 5px;
           background: #252323;
-          z-index: 5;
+          z-index: 6;
         }
 
         .person-body {
@@ -407,13 +405,13 @@ const Product = () => {
           z-index: 2;
         }
 
-        /* Premium owner clothing */
-        .boss-jacket {
-          background: linear-gradient(110deg, #171717, #38332e 50%, #171717);
-          border: 1px solid #4b443a;
+        /* Premium owner outfit */
+        .owner-suit {
+          background: linear-gradient(110deg, #171717, #37322c 50%, #171717);
+          border: 1px solid #554b3d;
         }
 
-        .boss-shirt {
+        .owner-shirt {
           position: absolute;
           top: 61px;
           left: 51px;
@@ -424,7 +422,7 @@ const Product = () => {
           z-index: 3;
         }
 
-        .boss-lapel {
+        .owner-lapel {
           position: absolute;
           top: 61px;
           left: 43px;
@@ -435,23 +433,23 @@ const Product = () => {
           z-index: 4;
         }
 
-        .boss-lapel.right {
+        .owner-lapel.right {
           left: 69px;
           transform: scaleX(-1);
         }
 
-        .boss-tie {
+        .owner-tie {
           position: absolute;
           top: 65px;
           left: 61px;
           width: 10px;
           height: 43px;
-          background: linear-gradient(#b99b69, #8d7048);
+          background: linear-gradient(#c7a36c, #8b6d42);
           clip-path: polygon(0 0, 100% 0, 85% 78%, 50% 100%, 15% 78%);
           z-index: 5;
         }
 
-        .boss-pocket {
+        .owner-pocket-square {
           position: absolute;
           top: 75px;
           left: 88px;
@@ -462,7 +460,7 @@ const Product = () => {
           z-index: 5;
         }
 
-        .salesman-body {
+        .salesman-shirt {
           background: linear-gradient(120deg, #233c36, #496b5d);
           border: 1px solid #6a8276;
         }
@@ -474,7 +472,6 @@ const Product = () => {
           height: 68px;
           border-radius: 10px;
           background: #252525;
-          z-index: 1;
         }
 
         .person-leg.left { left: 34px; }
@@ -488,73 +485,56 @@ const Product = () => {
           height: 15px;
           border-radius: 20px;
           background: #c98c64;
-          z-index: 6;
+          z-index: 7;
         }
 
-        .boss-arm {
-          background: #c98c64;
-        }
-
-        .held-phone {
+        .picked-package {
           position: absolute;
-          top: 70px;
+          top: 75px;
           left: 100px;
-          z-index: 8;
-          width: 44px;
-          height: 78px;
+          z-index: 10;
+          width: 43px;
+          height: 77px;
           padding: 3px;
-          border: 3px solid #252525;
-          border-radius: 9px;
-          background: #111;
-          transform-origin: bottom left;
+          border: 2px solid #b39b76;
+          border-radius: 4px;
+          background: linear-gradient(145deg, #fffefa, #e7dfd1);
+          box-shadow: 2px 4px 8px rgba(0,0,0,.2);
         }
 
-        .held-phone img {
+        .picked-package img {
           width: 100%;
           height: 100%;
-          border-radius: 4px;
           object-fit: contain;
-          background: white;
-        }
-
-        .shelf-phone {
-          transition: transform .3s ease, border-color .3s ease;
-        }
-
-        .shelf-phone:hover {
-          transform: translateY(-5px);
+          mix-blend-mode: multiply;
         }
 
         @media (max-width: 640px) {
-          .showroom-person {
-            transform: scale(.72);
+          .shop-person {
+            transform: scale(.66);
             transform-origin: bottom center;
-            margin-left: -12px;
-            margin-right: -12px;
+            margin-left: -18px;
+            margin-right: -18px;
           }
 
-          .phase-picking .selected-shelf-phone {
-            animation-name: selectedPhonePickMobile;
+          .phone-box {
+            height: 94px;
+            padding: 5px;
           }
 
-          .showroom-scene {
-            min-height: 390px;
+          .phone-box-image {
+            height: 51px;
+          }
+
+          .phase-picking .selected-box {
+            animation-name: boxPickMobile !important;
           }
         }
 
-        @keyframes selectedPhonePickMobile {
-          0%, 15% {
-            transform: translate(0, 0) scale(1);
-            opacity: 1;
-          }
-          45% {
-            transform: translate(10px, -70px) scale(1.1);
-            opacity: 1;
-          }
-          75%, 100% {
-            transform: translate(30px, -90px) scale(.6);
-            opacity: 0;
-          }
+        @keyframes boxPickMobile {
+          0% { transform: translate(0,0) scale(1); opacity: 1; }
+          35% { transform: translate(10px,-25px) scale(1.05); opacity: 1; }
+          75%,100% { transform: translate(25px,65px) scale(.7); opacity: 0; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -568,215 +548,275 @@ const Product = () => {
         }
       `}</style>
 
-      {/* SHOWROOM ANIMATION */}
+      {/* PREMIUM MOBILE SHOWROOM */}
       {showShowroom && selectedProduct && (
-        <div
-          className={`showroom-screen phase-${showroomPhase} fixed inset-0 z-[500] flex items-center justify-center overflow-y-auto bg-[#eeeae1] px-3 py-5`}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-[#e9e3d7] via-[#faf9f6] to-[#ded5c6]" />
+        <div className={`showroom-screen phase-${showroomPhase} fixed inset-0 z-[500] flex items-center justify-center overflow-y-auto bg-[#e8e3d9] px-3 py-5`}>
+
+          <div className="absolute inset-0 bg-gradient-to-b from-[#e5dfd3] via-[#f8f6f1] to-[#d8cbb7]" />
 
           <div className="relative z-10 my-auto w-full max-w-6xl">
 
-            {/* Showroom Header */}
+            {/* Shop Header */}
             <div className="mb-5 text-center">
-              <p className="text-[10px] font-bold tracking-[5px] text-[#947b59]">
-                MOBILESPOT PREMIUM STORE
+              <p className="text-[10px] font-bold tracking-[5px] text-[#96764b]">
+                MOBILESPOT
               </p>
 
-              <h2 className="mt-2 text-2xl font-bold text-gray-900 sm:text-3xl">
-                Welcome to Our Showroom
+              <h2 className="mt-2 text-2xl font-bold text-[#211e19] sm:text-3xl">
+                Premium Smartphone Store
               </h2>
 
-              <p className="mt-2 text-xs text-gray-500 sm:text-sm">
-                Our team is preparing your selected smartphone.
+              <p className="mt-2 text-xs text-gray-500">
+                Personal assistance from our showroom team
               </p>
             </div>
 
-            {/* Conversation */}
-            <div className="mb-4 flex min-h-[75px] items-center justify-center">
+            {/* Dialogue */}
+            <div className="mb-4 flex min-h-[68px] items-center justify-center">
               {showroomPhase === 'instruction' && (
-                <div className="showroom-bubble rounded-2xl border border-[#e6ddce] bg-white px-5 py-3 text-center shadow-lg">
+                <div className="showroom-bubble rounded-2xl border border-[#e2d7c5] bg-white px-5 py-3 text-center shadow-lg">
                   <p className="text-sm font-bold text-gray-900">
-                    Salesman! Bring me this phone.
+                    Salesman, please bring this sealed box.
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    {selectedProduct.name} — the customer has selected it.
+                    {selectedProduct.name}
                   </p>
                 </div>
               )}
 
               {showroomPhase === 'picking' && (
-                <div className="showroom-bubble rounded-2xl border border-[#e6ddce] bg-white px-5 py-3 text-center shadow-lg">
+                <div className="showroom-bubble rounded-2xl border border-[#e2d7c5] bg-white px-5 py-3 text-center shadow-lg">
                   <p className="text-sm font-bold text-gray-900">
-                    Certainly, Sir! I'm picking the selected phone.
+                    Certainly, Sir. I'm getting the requested model.
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    Salesman is taking {selectedProduct.name} from the shelf.
+                    Salesman is taking the selected box from the rack.
                   </p>
                 </div>
               )}
 
               {showroomPhase === 'showing' && (
-                <div className="showroom-bubble rounded-2xl border border-[#e6ddce] bg-white px-5 py-3 text-center shadow-lg">
+                <div className="showroom-bubble rounded-2xl border border-[#e2d7c5] bg-white px-5 py-3 text-center shadow-lg">
                   <p className="text-sm font-bold text-gray-900">
-                    Here it is! Your selected smartphone.
+                    Here is your requested smartphone.
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
-                    The salesman is presenting it to the customer.
+                    The selected sealed box is ready for the customer.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Main Scene */}
-            <div className="showroom-scene relative flex min-h-[355px] items-end justify-between overflow-hidden rounded-3xl border border-white/80 bg-white/65 px-1 pt-6 shadow-xl sm:min-h-[390px] sm:px-5">
+            {/* Store Interior */}
+            <div className="relative overflow-hidden rounded-3xl border border-white/80 bg-[#f4efe5] shadow-2xl">
 
-              {/* Boss */}
-              <div className="showroom-boss relative z-20 flex shrink-0 flex-col items-center">
-                <div className="showroom-person">
+              {/* Back wall */}
+              <div className="relative border-b-[8px] border-[#9b7950] bg-gradient-to-b from-[#ddd0b9] to-[#eee5d5] px-3 pb-5 pt-5 sm:px-6">
 
-                  <div className="person-head" />
-                  <div className="person-hair" />
+                <div className="mb-4 flex items-center justify-center gap-3">
+                  <span className="h-px flex-1 bg-[#b49a73]" />
+                  <h3 className="text-xs font-bold tracking-[3px] text-[#59452e] sm:text-sm">
+                    SMARTPHONE COLLECTION
+                  </h3>
+                  <span className="h-px flex-1 bg-[#b49a73]" />
+                </div>
 
-                  <div className="absolute left-[49px] top-[32px] z-10 flex gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-black" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                {/* Retail display rack */}
+                <div className="relative rounded-lg border-[9px] border-[#765638] bg-[#a8875d] p-2 shadow-[inset_0_0_18px_rgba(0,0,0,.3)] sm:p-4">
+
+                  {/* LED light */}
+                  <div className="absolute left-2 right-2 top-0 h-1 bg-[#fff1c9] shadow-[0_0_12px_4px_rgba(255,228,165,.8)]" />
+
+                  {/* Shelves */}
+                  <div className="grid grid-cols-4 gap-x-2 gap-y-3 sm:gap-x-4 sm:gap-y-4">
+
+                    {shelfProducts.map((phone, index) => {
+                      const isSelected = phone._id === selectedProduct._id
+
+                      return (
+                        <div
+                          key={phone._id}
+                          className={`relative flex items-end justify-center border-b-[5px] border-[#d3bc96] bg-gradient-to-b from-[#d4c0a0] to-[#b99b70] px-1 pb-2 pt-3 ${
+                            isSelected ? 'z-20' : ''
+                          }`}
+                        >
+                          {/* Sealed retail box */}
+                          <div
+                            className={`phone-box w-full max-w-[105px] ${
+                              isSelected ? 'selected-box' : ''
+                            }`}
+                            style={{ animationDelay: `${index * 70}ms` }}
+                          >
+                            <div className="phone-box-top" />
+                            <div className="phone-box-side" />
+
+                            <div className="relative z-[1] flex h-full flex-col items-center justify-center">
+
+                              <p className="mb-1 max-w-full truncate text-[7px] font-black uppercase tracking-wider text-[#756044] sm:text-[9px]">
+                                {phone.brand || 'SMARTPHONE'}
+                              </p>
+
+                              {phone.image ? (
+                                <img
+                                  src={phone.image}
+                                  alt={phone.name}
+                                  className="phone-box-image"
+                                />
+                              ) : (
+                                <FiSmartphone className="my-2 text-3xl text-[#8d7859]" />
+                              )}
+
+                              <p className="mt-1 line-clamp-1 w-full text-center text-[7px] font-bold text-[#3b3023] sm:text-[9px]">
+                                {phone.name}
+                              </p>
+
+                              <span className="mt-1 rounded-sm bg-[#e6dcc9] px-1.5 py-0.5 text-[6px] font-bold tracking-wider text-[#796343] sm:text-[7px]">
+                                SEALED PACK
+                              </span>
+                            </div>
+
+                            {isSelected && (
+                              <span className="absolute -top-3 left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#8b673d] px-2 py-1 text-[7px] font-bold tracking-wider text-white sm:text-[8px]">
+                                CUSTOMER'S CHOICE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+
                   </div>
 
-                  <div className="person-body boss-jacket" />
-                  <div className="boss-shirt" />
-                  <div className="boss-lapel" />
-                  <div className="boss-lapel right" />
-                  <div className="boss-tie" />
-                  <div className="boss-pocket" />
-
-                  <div className="boss-arm person-arm" />
-
-                  <div className="person-leg left" />
-                  <div className="person-leg right" />
+                  {/* Rack lower cabinet */}
+                  <div className="mt-1 flex h-7 items-center justify-center border-t-4 border-[#d6bd94] bg-gradient-to-b from-[#9a744b] to-[#64472e]">
+                    <span className="text-[8px] font-bold tracking-[4px] text-[#f0dfbd]">
+                      MOBILESPOT SHOWCASE
+                    </span>
+                  </div>
                 </div>
-
-                <span className="mt-[-5px] rounded-full bg-[#171717] px-4 py-1.5 text-[10px] font-bold tracking-widest text-white">
-                  OWNER
-                </span>
-                <span className="mt-1 text-[9px] font-semibold text-gray-500">
-                  STORE MANAGER
-                </span>
               </div>
 
-              {/* Phone Shelf */}
-              <div className="relative z-10 flex min-w-0 flex-1 flex-col items-center justify-end pb-5">
+              {/* Foreground counter and staff */}
+              <div className="relative flex min-h-[235px] items-end justify-between overflow-hidden bg-gradient-to-b from-[#e8dfd0] to-[#cbb99e] px-1 pt-4 sm:min-h-[260px] sm:px-6">
 
-                <div className="mb-3 text-center">
-                  <p className="text-[10px] font-bold tracking-[3px] text-[#8e7859]">
-                    SMARTPHONE COLLECTION
-                  </p>
-                  <p className="mt-1 text-[9px] text-gray-500">
-                    Select phone is highlighted
-                  </p>
+                {/* Owner */}
+                <div className="owner-character relative z-20 flex shrink-0 flex-col items-center">
+                  <div className="shop-person">
+                    <div className="person-head" />
+                    <div className="person-hair" />
+
+                    <div className="absolute left-[49px] top-[32px] z-10 flex gap-3">
+                      <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                    </div>
+
+                    <div className="person-body owner-suit" />
+                    <div className="owner-shirt" />
+                    <div className="owner-lapel" />
+                    <div className="owner-lapel right" />
+                    <div className="owner-tie" />
+                    <div className="owner-pocket-square" />
+
+                    <div className="owner-pointing-arm person-arm" />
+
+                    <div className="person-leg left" />
+                    <div className="person-leg right" />
+                  </div>
+
+                  <span className="mt-[-5px] rounded-full bg-[#171717] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
+                    OWNER
+                  </span>
+                  <span className="mt-1 text-[8px] font-semibold text-[#665640]">
+                    STORE MANAGER
+                  </span>
                 </div>
 
-                {/* Multiple database phones */}
-                <div className="grid w-full max-w-[540px] grid-cols-4 gap-2 rounded-t-xl border-x-4 border-t-4 border-[#a99372] bg-[#e7dfd1] p-3 sm:gap-4 sm:p-4">
+                {/* Display counter */}
+                <div className="relative mx-1 mb-4 flex min-w-0 flex-1 flex-col items-center sm:mx-5">
 
-                  {shelfProducts.map((phone, index) => {
-                    const isSelected = phone._id === selectedProduct._id
+                  <div className="relative flex h-[95px] w-full max-w-[330px] items-center justify-center rounded-t-xl border-x-4 border-t-4 border-white/80 bg-white/30 shadow-inner sm:h-[115px]">
 
-                    return (
-                      <div
-                        key={phone._id}
-                        className={`showroom-phone-card shelf-phone relative flex min-h-[105px] flex-col items-center justify-center rounded-lg border bg-white p-1.5 shadow-sm sm:min-h-[125px] sm:p-2 ${
-                          isSelected
-                            ? 'selected-shelf-phone border-[#a17c47] ring-2 ring-[#b99a6b]/40'
-                            : 'border-[#e5e0d7]'
-                        }`}
-                        style={{ animationDelay: `${index * 90}ms` }}
-                      >
-                        {isSelected && (
-                          <span className="absolute -top-2 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#9b794a] px-2 py-1 text-[7px] font-bold text-white sm:text-[8px]">
-                            SELECTED
-                          </span>
-                        )}
+                    {/* Picked selected box */}
+                    {selectedProduct.image && (
+                      <div className="picked-package">
+                        <img
+                          src={selectedProduct.image}
+                          alt={selectedProduct.name}
+                        />
+                      </div>
+                    )}
 
-                        {phone.image ? (
-                          <img
-                            src={phone.image}
-                            alt={phone.name}
-                            className="h-[65px] w-full object-contain sm:h-[80px]"
-                          />
-                        ) : (
-                          <FiSmartphone className="text-3xl text-gray-400" />
-                        )}
-
-                        <p className="mt-1 line-clamp-1 w-full text-center text-[8px] font-bold text-gray-700 sm:text-[9px]">
-                          {phone.name}
+                    {showroomPhase === 'showing' && (
+                      <div className="showroom-bubble text-center">
+                        <p className="text-[9px] font-bold tracking-widest text-[#80613a]">
+                          READY FOR CUSTOMER
                         </p>
-
-                        <p className="text-[8px] text-gray-500">
-                          {formatPrice(phone.price)}
+                        <p className="mt-1 max-w-[130px] text-[10px] font-bold text-gray-800">
+                          {selectedProduct.name}
                         </p>
                       </div>
-                    )
-                  })}
+                    )}
 
-                </div>
-
-                {/* Shelf edge */}
-                <div className="h-4 w-full max-w-[570px] rounded-sm bg-gradient-to-b from-[#b8a17e] to-[#8f7757] shadow-lg" />
-
-                {/* Shelf base */}
-                <div className="h-7 w-[88%] max-w-[510px] rounded-b-lg bg-[#d1c1a7] shadow-md" />
-
-                <p className="mt-2 text-[8px] font-bold tracking-[3px] text-gray-500">
-                  MOBILESPOT COLLECTION
-                </p>
-              </div>
-
-              {/* Salesman */}
-              <div className="showroom-salesman relative z-20 flex shrink-0 flex-col items-center">
-                <div className="showroom-person">
-
-                  <div className="person-head" />
-                  <div className="person-hair" />
-
-                  <div className="absolute left-[49px] top-[32px] z-10 flex gap-3">
-                    <span className="h-1.5 w-1.5 rounded-full bg-black" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                    {showroomPhase !== 'showing' && (
+                      <p className="text-[9px] font-bold tracking-[2px] text-[#8b7657]">
+                        PRESENTATION COUNTER
+                      </p>
+                    )}
                   </div>
 
-                  <div className="person-body salesman-body" />
+                  <div className="h-3 w-full max-w-[355px] rounded-sm border-t border-white/70 bg-gradient-to-b from-[#f7f2e9] to-[#a88d68] shadow-lg" />
 
-                  <div className="absolute left-[53px] top-[60px] z-[4] h-5 w-5 rotate-45 border-b-2 border-white" />
+                  <div className="h-12 w-[90%] max-w-[320px] border-x-4 border-[#a78962] bg-gradient-to-b from-[#9a7953] to-[#60462e] shadow-md" />
 
-                  <div className="salesman-arm person-arm" />
-
-                  {/* Selected phone in salesman's hand */}
-                  {selectedProduct.image && (
-                    <div className="held-phone">
-                      <img
-                        src={selectedProduct.image}
-                        alt={selectedProduct.name}
-                      />
-                    </div>
-                  )}
-
-                  <div className="person-leg left" />
-                  <div className="person-leg right" />
+                  <span className="mt-2 text-[7px] font-bold tracking-[3px] text-[#6e593d]">
+                    CUSTOMER SERVICE COUNTER
+                  </span>
                 </div>
 
-                <span className="mt-[-5px] rounded-full bg-[#365b4c] px-4 py-1.5 text-[10px] font-bold tracking-widest text-white">
-                  SALESMAN
-                </span>
-                <span className="mt-1 text-[9px] font-semibold text-gray-500">
-                  CUSTOMER SERVICE
-                </span>
+                {/* Salesman */}
+                <div className="salesman-character relative z-20 flex shrink-0 flex-col items-center">
+                  <div className="shop-person">
+                    <div className="person-head" />
+                    <div className="person-hair" />
+
+                    <div className="absolute left-[49px] top-[32px] z-10 flex gap-3">
+                      <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                    </div>
+
+                    <div className="person-body salesman-shirt" />
+
+                    <div className="absolute left-[53px] top-[60px] z-[4] h-5 w-5 rotate-45 border-b-2 border-white" />
+
+                    <div className="salesman-reaching-arm person-arm" />
+
+                    {selectedProduct.image && (
+                      <div className="picked-package">
+                        <img
+                          src={selectedProduct.image}
+                          alt={selectedProduct.name}
+                        />
+                      </div>
+                    )}
+
+                    <div className="person-leg left" />
+                    <div className="person-leg right" />
+                  </div>
+
+                  <span className="mt-[-5px] rounded-full bg-[#365b4c] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
+                    SALESMAN
+                  </span>
+                  <span className="mt-1 text-[8px] font-semibold text-[#665640]">
+                    CUSTOMER SERVICE
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* Selected Phone Information */}
-            <div className="mx-auto mt-4 flex max-w-lg items-center gap-4 rounded-2xl border border-[#e6ddce] bg-white/90 p-3 shadow-sm sm:p-4">
+            {/* Selected product info */}
+            <div className="mx-auto mt-4 flex max-w-lg items-center gap-4 rounded-2xl border border-[#e2d7c5] bg-white/95 p-3 shadow-lg sm:p-4">
 
-              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#f3f0e9] p-2">
+              <div className="flex h-16 w-14 shrink-0 items-center justify-center rounded-md border border-[#d9c9ad] bg-[#f4efe5] p-1">
                 {selectedProduct.image ? (
                   <img
                     src={selectedProduct.image}
@@ -793,8 +833,8 @@ const Product = () => {
                   {showroomPhase === 'instruction'
                     ? 'CUSTOMER REQUEST'
                     : showroomPhase === 'picking'
-                      ? 'PICKING YOUR PHONE'
-                      : 'PHONE READY TO SHOW'}
+                      ? 'RETRIEVING SEALED BOX'
+                      : 'READY FOR PRESENTATION'}
                 </p>
 
                 <h3 className="mt-1 truncate text-sm font-bold text-gray-900">
@@ -806,18 +846,12 @@ const Product = () => {
                 </p>
               </div>
 
-              <div className="shrink-0 text-right">
-                <span className={`inline-block rounded-full px-2 py-1 text-[8px] font-bold ${
-                  showroomPhase === 'showing'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-[#f3eee5] text-[#94774d]'
-                }`}>
-                  {showroomPhase === 'showing' ? 'READY' : 'PROCESSING'}
-                </span>
-              </div>
+              <span className="shrink-0 rounded-full bg-[#f1e9dc] px-2 py-1 text-[8px] font-bold text-[#82633c]">
+                {showroomPhase === 'showing' ? 'READY' : 'PROCESSING'}
+              </span>
             </div>
 
-            <p className="mt-4 text-center text-[9px] font-bold tracking-[4px] text-gray-500">
+            <p className="mt-4 text-center text-[9px] font-bold tracking-[4px] text-[#806d50]">
               MOBILESPOT — PREMIUM SMARTPHONE STORE
             </p>
           </div>
@@ -850,7 +884,7 @@ const Product = () => {
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search */}
         <div className="relative mb-5">
           <FiSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-xl text-gray-400" />
 
@@ -873,7 +907,7 @@ const Product = () => {
           )}
         </div>
 
-        {/* Filter Panel */}
+        {/* Filters */}
         <div className="mb-7 rounded-2xl border border-[#e9e7e1] bg-white p-4 shadow-sm sm:p-5">
 
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -910,7 +944,6 @@ const Product = () => {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
-            {/* Brand */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 BRAND
@@ -930,7 +963,6 @@ const Product = () => {
               </select>
             </div>
 
-            {/* Price */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 PRICE RANGE
@@ -950,7 +982,6 @@ const Product = () => {
               </select>
             </div>
 
-            {/* Sorting */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 SORT PRODUCTS
@@ -967,7 +998,6 @@ const Product = () => {
               </select>
             </div>
 
-            {/* Availability */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 AVAILABILITY
@@ -1024,7 +1054,7 @@ const Product = () => {
             </span>
           </div>
 
-          {/* Active Tags */}
+          {/* Active Filter Tags */}
           {activeFilters > 0 && (
             <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
 
@@ -1104,7 +1134,6 @@ const Product = () => {
 
         {!loading && !error && (
           <>
-            {/* Products Heading */}
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-[#171717]">
@@ -1166,11 +1195,9 @@ const Product = () => {
                         />
                       ) : null}
 
-                      <div
-                        className={`flex-col items-center text-gray-400 ${
-                          product.image ? 'hidden' : 'flex'
-                        }`}
-                      >
+                      <div className={`flex-col items-center text-gray-400 ${
+                        product.image ? 'hidden' : 'flex'
+                      }`}>
                         <FiSmartphone className="mb-2 text-5xl" />
                         <span className="text-xs">
                           Image unavailable
@@ -1246,7 +1273,6 @@ const Product = () => {
                 ))}
               </div>
             ) : (
-              /* Empty State */
               <div className="rounded-2xl border border-gray-100 bg-white p-12 text-center">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#f5f4f0]">
                   <FiSearch className="text-2xl text-gray-400" />
