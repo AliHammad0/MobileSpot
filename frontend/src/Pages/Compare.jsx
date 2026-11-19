@@ -6,81 +6,225 @@ import {
   FiX,
   FiTrash2,
   FiArrowLeft,
-  FiSmartphone
+  FiSmartphone,
+  FiCpu,
+  FiCamera,
+  FiHardDrive,
+  FiWifi,
+  FiMonitor,
+  FiCheckCircle,
+  FiActivity
 } from 'react-icons/fi'
 
 const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
 const STORAGE_KEY = 'mobile-compare'
 
-// Two people comparison animation
-const CompareAnimation = () => {
+// Get actual database image
+const getMobileImage = (mobile) => {
+  if (!mobile) return ''
+
+  if (Array.isArray(mobile.images) && mobile.images.length > 0) {
+    return mobile.images[0]
+  }
+
+  return mobile.image || mobile.imageUrl || mobile.thumbnail || ''
+}
+
+// Get nested specification
+const getSpec = (mobile, key) => {
+  return mobile?.specifications?.[key] || 'Not available'
+}
+
+// Animated feature card
+const FeatureCard = ({ icon: Icon, title, value, className = '', delay = '' }) => (
+  <div
+    className={`feature-test-card absolute z-30 flex items-center gap-2 rounded-xl border border-gray-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur-sm ${className}`}
+    style={{ animationDelay: delay }}
+  >
+    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-800">
+      <Icon size={16} />
+    </div>
+
+    <div className="min-w-0">
+      <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wide text-gray-400">
+        {title}
+      </p>
+      <p className="max-w-[100px] truncate text-xs font-bold text-gray-900">
+        {value || 'Checking...'}
+      </p>
+    </div>
+  </div>
+)
+
+// Person holding actual mobile image
+const MobileTester = ({
+  mobile,
+  side,
+  personName,
+  color,
+  delay
+}) => {
+  const image = getMobileImage(mobile)
+
   return (
-    <div className="compare-illustration relative mx-auto h-64 w-full max-w-md overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 sm:h-72">
-
-      <div className="absolute left-1/2 top-8 h-40 w-40 -translate-x-1/2 rounded-full bg-white/70" />
-
-      {/* Floating comparison symbols */}
-      <div className="compare-float absolute left-[46%] top-5 text-2xl font-bold text-gray-400">
-        VS
+    <div className={`tester tester-${side} absolute bottom-0 ${side === 'left' ? 'left-[5%]' : 'right-[5%]'}`}>
+      {/* Person head */}
+      <div
+        className={`tester-head absolute z-20 h-14 w-14 rounded-full border-[3px] border-gray-800 bg-amber-200 ${side === 'left' ? 'left-9' : 'right-9'}`}
+        style={{ animationDelay: delay }}
+      >
+        <div className="absolute left-3 top-6 h-1.5 w-1.5 rounded-full bg-gray-900" />
+        <div className="absolute right-3 top-6 h-1.5 w-1.5 rounded-full bg-gray-900" />
+        <div className="absolute bottom-2 left-1/2 h-2 w-3 -translate-x-1/2 rounded-b-full border-b-2 border-gray-800" />
+        <div className="absolute -top-1 left-0 h-5 w-full rounded-t-full bg-gray-900" />
       </div>
 
-      <div className="compare-sparkle absolute left-[20%] top-12 text-xl text-amber-500">
-        ✦
+      {/* Person body */}
+      <div
+        className="absolute bottom-0 h-28 w-32 rounded-t-[48px] border-[3px] border-gray-800"
+        style={{
+          backgroundColor: color,
+          left: side === 'left' ? '0' : 'auto',
+          right: side === 'right' ? '0' : 'auto'
+        }}
+      />
+
+      {/* Arm holding phone */}
+      <div
+        className={`tester-arm absolute top-[76px] z-20 h-5 w-20 rounded-full border-[3px] border-gray-800 bg-amber-200 ${side === 'left' ? 'left-[75px] origin-left' : 'right-[75px] origin-right'}`}
+        style={{ animationDelay: delay }}
+      />
+
+      {/* Actual product image in hand */}
+      <div
+        className={`tester-phone absolute top-[48px] z-30 flex h-[105px] w-[65px] items-center justify-center overflow-hidden rounded-xl border-[4px] border-gray-800 bg-white p-1 shadow-xl ${side === 'left' ? 'left-[118px]' : 'right-[118px]'}`}
+        style={{ animationDelay: delay }}
+      >
+        {image ? (
+          <img
+            src={image}
+            alt={mobile?.name || 'Mobile phone'}
+            className="h-full w-full rounded-lg object-contain"
+          />
+        ) : (
+          <FiSmartphone className="text-3xl text-gray-400" />
+        )}
       </div>
 
-      <div className="compare-sparkle compare-sparkle-delay absolute right-[18%] top-20 text-2xl text-gray-500">
-        ✦
+      {/* Person label */}
+      <div
+        className={`absolute -top-7 z-30 whitespace-nowrap rounded-full bg-white px-3 py-1 text-[10px] font-bold text-gray-700 shadow ${side === 'left' ? 'left-5' : 'right-5'}`}
+      >
+        {personName}
       </div>
+    </div>
+  )
+}
 
-      {/* Left Person */}
-      <div className="absolute bottom-0 left-[9%] h-48 w-36">
-        {/* Head */}
-        <div className="compare-head absolute left-10 top-3 z-20 h-16 w-16 rounded-full border-4 border-gray-800 bg-amber-200">
-          <div className="absolute left-4 top-7 h-1.5 w-1.5 rounded-full bg-gray-800" />
-          <div className="absolute right-4 top-7 h-1.5 w-1.5 rounded-full bg-gray-800" />
-          <div className="absolute bottom-3 left-1/2 h-2 w-4 -translate-x-1/2 rounded-b-full border-b-2 border-gray-800" />
-          <div className="absolute -top-1 left-1 h-5 w-12 rounded-t-full bg-gray-800" />
+// Main animation section
+const CompareAnimation = ({ firstMobile, secondMobile }) => {
+  const firstName = firstMobile?.name || firstMobile?.model || 'Mobile 1'
+  const secondName = secondMobile?.name || secondMobile?.model || 'Mobile 2'
+
+  return (
+    <div className="relative mx-auto w-full max-w-2xl">
+
+      <div className="relative h-[330px] overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-gray-100 via-white to-gray-200 sm:h-[370px]">
+
+        {/* Background circles */}
+        <div className="absolute left-1/2 top-10 h-52 w-52 -translate-x-1/2 rounded-full border border-gray-300/60" />
+        <div className="absolute left-1/2 top-16 h-40 w-40 -translate-x-1/2 rounded-full border border-gray-300/60" />
+
+        {/* Center testing panel */}
+        <div className="absolute left-1/2 top-7 z-10 -translate-x-1/2 rounded-xl border border-gray-200 bg-white px-5 py-3 text-center shadow-md">
+          <div className="flex items-center justify-center gap-2 text-gray-900">
+            <FiActivity size={17} />
+            <span className="text-xs font-bold uppercase tracking-wider">
+              Live Feature Testing
+            </span>
+          </div>
+          <p className="mt-1 text-[10px] text-gray-500">
+            Comparing performance
+          </p>
         </div>
 
-        {/* Body */}
-        <div className="absolute bottom-0 left-3 h-28 w-32 rounded-t-[55px] border-4 border-gray-800 bg-blue-600" />
+        {/* Floating testing cards */}
+        <FeatureCard
+          icon={FiCpu}
+          title="RAM"
+          value={getSpec(firstMobile, 'ram')}
+          className="left-2 top-[105px] sm:left-5"
+          delay="0s"
+        />
 
-        {/* Arm */}
-        <div className="compare-left-arm absolute left-[82px] top-[87px] z-30 h-5 w-20 origin-left rotate-[-28deg] rounded-full border-2 border-gray-800 bg-amber-200" />
+        <FeatureCard
+          icon={FiHardDrive}
+          title="Storage"
+          value={getSpec(firstMobile, 'storage')}
+          className="left-2 top-[190px] sm:left-5"
+          delay="0.4s"
+        />
 
-        {/* Phone */}
-        <div className="compare-left-phone absolute left-[110px] top-[56px] z-20 h-16 w-9 rotate-[-10deg] rounded-lg border-[3px] border-gray-800 bg-gray-900 shadow-lg">
-          <div className="absolute inset-1 rounded-md bg-gradient-to-br from-blue-300 to-blue-600" />
-          <div className="absolute left-1/2 top-1 h-1 w-3 -translate-x-1/2 rounded-full bg-gray-800" />
+        <FeatureCard
+          icon={FiCamera}
+          title="Camera Test"
+          value={getSpec(secondMobile, 'rearCamera')}
+          className="right-2 top-[105px] sm:right-5"
+          delay="0.7s"
+        />
+
+        <FeatureCard
+          icon={FiWifi}
+          title="Network"
+          value={getSpec(secondMobile, 'network')}
+          className="right-2 top-[190px] sm:right-5"
+          delay="1s"
+        />
+
+        {/* People */}
+        <MobileTester
+          mobile={firstMobile}
+          side="left"
+          personName="Hardware Expert"
+          color="#334155"
+          delay="0s"
+        />
+
+        <MobileTester
+          mobile={secondMobile}
+          side="right"
+          personName="Camera & Network Expert"
+          color="#047857"
+          delay="0.5s"
+        />
+
+        {/* Bottom status */}
+        <div className="absolute bottom-3 left-1/2 z-40 -translate-x-1/2 whitespace-nowrap rounded-full border border-gray-200 bg-white px-4 py-2 shadow-sm">
+          <div className="flex items-center gap-2">
+            <FiCheckCircle className="text-green-600" size={14} />
+            <span className="text-[10px] font-bold text-gray-700 sm:text-xs">
+              {firstName} vs {secondName}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Right Person */}
-      <div className="absolute bottom-0 right-[9%] h-48 w-36">
-        {/* Head */}
-        <div className="compare-head compare-head-delay absolute right-10 top-3 z-20 h-16 w-16 rounded-full border-4 border-gray-800 bg-orange-200">
-          <div className="absolute left-4 top-7 h-1.5 w-1.5 rounded-full bg-gray-800" />
-          <div className="absolute right-4 top-7 h-1.5 w-1.5 rounded-full bg-gray-800" />
-          <div className="absolute bottom-3 left-1/2 h-2 w-4 -translate-x-1/2 rounded-b-full border-b-2 border-gray-800" />
-          <div className="absolute -top-1 right-1 h-5 w-12 rounded-t-full bg-gray-800" />
+      {/* Extra testing information */}
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center">
+          <FiMonitor className="mx-auto mb-1 text-gray-700" />
+          <p className="text-[10px] font-bold text-gray-700">Display Test</p>
         </div>
 
-        {/* Body */}
-        <div className="absolute bottom-0 right-3 h-28 w-32 rounded-t-[55px] border-4 border-gray-800 bg-emerald-600" />
-
-        {/* Arm */}
-        <div className="compare-right-arm absolute right-[82px] top-[87px] z-30 h-5 w-20 origin-right rotate-[28deg] rounded-full border-2 border-gray-800 bg-orange-200" />
-
-        {/* Phone */}
-        <div className="compare-right-phone absolute right-[110px] top-[56px] z-20 h-16 w-9 rotate-[10deg] rounded-lg border-[3px] border-gray-800 bg-gray-900 shadow-lg">
-          <div className="absolute inset-1 rounded-md bg-gradient-to-br from-emerald-300 to-emerald-600" />
-          <div className="absolute left-1/2 top-1 h-1 w-3 -translate-x-1/2 rounded-full bg-gray-800" />
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center">
+          <FiCpu className="mx-auto mb-1 text-gray-700" />
+          <p className="text-[10px] font-bold text-gray-700">Performance</p>
         </div>
-      </div>
 
-      {/* Bottom label */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-gray-200 bg-white px-5 py-2 text-xs font-bold text-gray-700 shadow-sm">
-        Find Your Perfect Mobile
+        <div className="rounded-lg border border-gray-200 bg-white p-3 text-center">
+          <FiWifi className="mx-auto mb-1 text-gray-700" />
+          <p className="text-[10px] font-bold text-gray-700">5G Network</p>
+        </div>
       </div>
     </div>
   )
@@ -187,15 +331,6 @@ const Compare = () => {
     setError('')
   }
 
-  // Get mobile image
-  const getImage = (mobile) => {
-    if (Array.isArray(mobile.images) && mobile.images.length > 0) {
-      return mobile.images[0]
-    }
-
-    return mobile.image || mobile.imageUrl || mobile.thumbnail || ''
-  }
-
   // Format values
   const formatValue = (value) => {
     if (value === undefined || value === null || value === '') {
@@ -229,7 +364,7 @@ const Compare = () => {
     { label: 'Front Camera', key: 'frontCamera', nested: true },
     { label: 'Battery', key: 'battery', nested: true },
     { label: 'Operating System', key: 'operatingSystem', nested: true },
-    { label: 'Network', key: 'network', nested: true },
+    { label: 'Network / 5G', key: 'network', nested: true },
     { label: 'Available Colors', key: 'colors' },
     { label: 'Stock', key: 'stock' },
     { label: 'Rating', key: 'rating' },
@@ -239,13 +374,9 @@ const Compare = () => {
 
   // Get specification value
   const getSpecificationValue = (mobile, row) => {
-    let value
-
-    if (row.nested) {
-      value = mobile.specifications?.[row.key]
-    } else {
-      value = mobile[row.key]
-    }
+    const value = row.nested
+      ? mobile.specifications?.[row.key]
+      : mobile[row.key]
 
     if (row.key === 'expressDelivery') {
       return value ? 'Available' : 'Not Available'
@@ -256,7 +387,9 @@ const Compare = () => {
     }
 
     if (row.key === 'price' || row.key === 'oldPrice') {
-      return value ? `${row.prefix}${formatValue(value)}` : 'Not available'
+      return value
+        ? `${row.prefix}${formatValue(value)}`
+        : 'Not available'
     }
 
     if (row.suffix && value !== undefined && value !== '') {
@@ -266,13 +399,24 @@ const Compare = () => {
     return formatValue(value)
   }
 
+  // Select two actual database mobiles for animation
+  const animationFirstMobile = compareMobiles[0] || allMobiles[0]
+
+  const animationSecondMobile =
+    compareMobiles[1] ||
+    allMobiles.find(
+      (mobile) =>
+        String(mobile._id) !== String(animationFirstMobile?._id)
+    ) ||
+    animationFirstMobile
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10 font-[Arial] sm:px-6 lg:px-10">
 
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
-        <div className="mb-8 grid items-center gap-8 lg:grid-cols-2">
+        <div className="mb-10 grid items-center gap-8 lg:grid-cols-2">
 
           <div>
             <Link
@@ -295,8 +439,8 @@ const Compare = () => {
             </h1>
 
             <p className="mt-4 max-w-lg text-sm leading-7 text-gray-500 sm:text-base">
-              Compare features, performance, prices and specifications
-              side by side to find the perfect smartphone for your needs.
+              Explore mobile features, test specifications and compare
+              performance, camera, RAM, storage and network side by side.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
@@ -311,16 +455,21 @@ const Compare = () => {
 
               <div className="rounded-lg border border-gray-200 bg-white px-4 py-3">
                 <p className="text-xl font-bold text-black">
-                  Side by Side
+                  Live
                 </p>
                 <p className="text-xs text-gray-500">
-                  Easy Comparison
+                  Feature Exploration
                 </p>
               </div>
             </div>
           </div>
 
-          <CompareAnimation />
+          {!loading && (
+            <CompareAnimation
+              firstMobile={animationFirstMobile}
+              secondMobile={animationSecondMobile}
+            />
+          )}
 
         </div>
 
@@ -333,12 +482,13 @@ const Compare = () => {
 
         {/* Add Mobile */}
         <div className="mb-8 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center">
+
           <div className="flex-1">
             <h2 className="mb-1 text-base font-bold text-black">
               Add Another Mobile
             </h2>
             <p className="text-xs text-gray-500">
-              You can compare up to 3 mobiles at a time.
+              Select mobiles to compare up to 3 devices.
             </p>
           </div>
 
@@ -418,8 +568,8 @@ const Compare = () => {
             </h2>
 
             <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-              Select mobiles from the dropdown above or open any mobile
-              and use the Compare button to get started.
+              Select mobiles from the dropdown or open any mobile and
+              use the Compare button to get started.
             </p>
 
             <Link
@@ -457,9 +607,9 @@ const Compare = () => {
                   </button>
 
                   <div className="flex h-36 items-center justify-center sm:h-52">
-                    {getImage(mobile) ? (
+                    {getMobileImage(mobile) ? (
                       <img
-                        src={getImage(mobile)}
+                        src={getMobileImage(mobile)}
                         alt={mobile.name || mobile.model}
                         className="max-h-full max-w-full object-contain"
                       />
@@ -536,88 +686,85 @@ const Compare = () => {
 
       {/* Animation CSS */}
       <style>{`
-        .compare-head {
-          animation: compareHead 2.5s ease-in-out infinite;
+        .tester-head {
+          animation: testerHead 2.8s ease-in-out infinite;
         }
 
-        .compare-head-delay {
+        .tester-arm {
+          animation: testerArm 2.4s ease-in-out infinite;
+        }
+
+        .tester-phone {
+          animation: testerPhone 2.4s ease-in-out infinite;
+        }
+
+        .feature-test-card {
+          animation: featureFloat 3s ease-in-out infinite;
+        }
+
+        .tester-left {
+          animation: testerBody 3s ease-in-out infinite;
+        }
+
+        .tester-right {
+          animation: testerBody 3s ease-in-out infinite;
           animation-delay: 0.5s;
         }
 
-        .compare-left-arm {
-          animation: compareLeftArm 2s ease-in-out infinite;
-        }
-
-        .compare-right-arm {
-          animation: compareRightArm 2s ease-in-out infinite;
-        }
-
-        .compare-left-phone {
-          animation: compareLeftPhone 2s ease-in-out infinite;
-        }
-
-        .compare-right-phone {
-          animation: compareRightPhone 2s ease-in-out infinite;
-        }
-
-        .compare-float {
-          animation: compareFloat 2s ease-in-out infinite;
-        }
-
-        .compare-sparkle {
-          animation: compareSparkle 2s ease-in-out infinite;
-        }
-
-        .compare-sparkle-delay {
-          animation-delay: 1s;
-        }
-
-        @keyframes compareHead {
+        @keyframes testerHead {
           0%, 100% {
-            transform: translateY(0);
+            transform: translateY(0) rotate(0deg);
           }
           50% {
-            transform: translateY(-4px);
+            transform: translateY(-4px) rotate(-3deg);
           }
         }
 
-        @keyframes compareLeftArm {
+        @keyframes testerArm {
           0%, 100% {
-            transform: rotate(-28deg);
+            transform: rotate(-8deg);
           }
           50% {
-            transform: rotate(-18deg);
+            transform: rotate(5deg);
           }
         }
 
-        @keyframes compareRightArm {
+        .tester-right .tester-arm {
+          animation-name: testerArmRight;
+        }
+
+        @keyframes testerArmRight {
           0%, 100% {
-            transform: rotate(28deg);
+            transform: rotate(8deg);
           }
           50% {
-            transform: rotate(18deg);
+            transform: rotate(-5deg);
           }
         }
 
-        @keyframes compareLeftPhone {
+        @keyframes testerPhone {
           0%, 100% {
-            transform: rotate(-10deg) translateY(0);
+            transform: translateY(0) rotate(-3deg);
           }
           50% {
-            transform: rotate(-16deg) translateY(-5px);
+            transform: translateY(-6px) rotate(3deg);
           }
         }
 
-        @keyframes compareRightPhone {
+        .tester-right .tester-phone {
+          animation-name: testerPhoneRight;
+        }
+
+        @keyframes testerPhoneRight {
           0%, 100% {
-            transform: rotate(10deg) translateY(0);
+            transform: translateY(0) rotate(3deg);
           }
           50% {
-            transform: rotate(16deg) translateY(-5px);
+            transform: translateY(-6px) rotate(-3deg);
           }
         }
 
-        @keyframes compareFloat {
+        @keyframes featureFloat {
           0%, 100% {
             transform: translateY(0);
           }
@@ -626,25 +773,22 @@ const Compare = () => {
           }
         }
 
-        @keyframes compareSparkle {
+        @keyframes testerBody {
           0%, 100% {
-            opacity: 0.4;
-            transform: scale(0.8) rotate(0deg);
+            transform: translateY(0);
           }
           50% {
-            opacity: 1;
-            transform: scale(1.2) rotate(25deg);
+            transform: translateY(-3px);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .compare-head,
-          .compare-left-arm,
-          .compare-right-arm,
-          .compare-left-phone,
-          .compare-right-phone,
-          .compare-float,
-          .compare-sparkle {
+          .tester-head,
+          .tester-arm,
+          .tester-phone,
+          .feature-test-card,
+          .tester-left,
+          .tester-right {
             animation: none;
           }
         }
