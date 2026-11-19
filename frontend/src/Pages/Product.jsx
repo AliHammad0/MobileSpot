@@ -29,6 +29,15 @@ const priceRanges = [
 const formatPrice = (price = 0) =>
   `Rs ${Number(price).toLocaleString('en-PK')}`
 
+const getProductImage = (product) => {
+  const image = product?.images?.[0]
+
+  if (typeof image === 'string') return image
+  if (image?.url) return image.url
+
+  return ''
+}
+
 const Product = () => {
   const navigate = useNavigate()
 
@@ -51,13 +60,13 @@ const Product = () => {
   const phaseTimers = useRef([])
   const navigationStarted = useRef(false)
 
-  // Image aur title par direct details page open hoga.
+  // Product image/title par direct details page open hoga.
   const openProduct = (productId) => {
     if (!productId) return
     navigate(`/product/${productId}`)
   }
 
-  // Animation sirf View Details button se start hogi.
+  // View Details button showroom animation start karega.
   const handleViewDetails = (product) => {
     if (
       !product?._id ||
@@ -102,7 +111,7 @@ const Product = () => {
     }
   }, [])
 
-  // Fetch Products
+  // Database se products fetch.
   const fetchProducts = async () => {
     try {
       setLoading(true)
@@ -111,14 +120,18 @@ const Product = () => {
       const response = await fetch(API_URL)
       const data = await response.json()
 
-      if (!response.ok || !data.ok) {
+      if (!response.ok || data.ok === false) {
         throw new Error(data.message || 'Failed to fetch products')
       }
 
+      const productList = Array.isArray(data)
+        ? data
+        : data.products || data.data?.products || []
+
       setProducts(
-        (data.products || []).map((product) => ({
+        productList.map((product) => ({
           ...product,
-          image: product.images?.[0] || '',
+          image: getProductImage(product),
           reviews: product.numReviews || 0,
           inStock: Number(product.stock) > 0,
           expressDelivery: product.expressDelivery === true
@@ -135,8 +148,7 @@ const Product = () => {
     fetchProducts()
   }, [])
 
-  // Showroom mein database ke actual phone products use honge.
-  // Selected phone hamesha first box hoga.
+  // Showroom shelves: selected phone first.
   const shelfProducts = useMemo(() => {
     if (!selectedProduct) return []
 
@@ -151,9 +163,13 @@ const Product = () => {
 
     if (!availableProducts.length) return []
 
-    // Kam products hon tab bhi shelves par multiple sealed boxes.
     return Array.from(
-      { length: Math.min(12, Math.max(8, availableProducts.length)) },
+      {
+        length: Math.min(
+          12,
+          Math.max(8, availableProducts.length)
+        )
+      },
       (_, index) => availableProducts[index % availableProducts.length]
     )
   }, [products, selectedProduct])
@@ -164,7 +180,7 @@ const Product = () => {
     )].sort()
   }, [products])
 
-  // Filter and Sort
+  // Search, filters aur sorting.
   const filteredProducts = useMemo(() => {
     const result = products.filter((product) => {
       const searchText = `${product.brand || ''} ${product.name || ''}`
@@ -288,6 +304,28 @@ const Product = () => {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
+        /* Out of stock person animation */
+        @keyframes soldOutPersonEnter {
+          0% { opacity: 0; transform: translateY(18px) scale(.88); }
+          70% { opacity: 1; transform: translateY(-3px) scale(1.02); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @keyframes soldOutTalk {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-4px) scale(1.04); }
+        }
+
+        @keyframes soldOutPhone {
+          0%, 100% { transform: rotate(-5deg) translateY(0); }
+          50% { transform: rotate(5deg) translateY(-4px); }
+        }
+
+        @keyframes soldOutHand {
+          0%, 100% { transform: rotate(-7deg); }
+          50% { transform: rotate(5deg); }
+        }
+
         .showroom-screen {
           animation: sceneFade .4s ease both;
         }
@@ -322,8 +360,7 @@ const Product = () => {
           border-radius: 5px;
           border: 1px solid #c8b99f;
           background: linear-gradient(145deg, #fffefa, #e9e2d5);
-          box-shadow:
-            2px 3px 5px rgba(0,0,0,.13),
+          box-shadow: 2px 3px 5px rgba(0,0,0,.13),
             inset 0 0 0 3px rgba(255,255,255,.6);
           animation: boxAppear .55s ease both;
         }
@@ -368,7 +405,8 @@ const Product = () => {
         .selected-box {
           z-index: 20;
           border: 2px solid #b58a4f;
-          box-shadow: 0 0 0 3px rgba(181,138,79,.2), 3px 5px 12px rgba(0,0,0,.18);
+          box-shadow: 0 0 0 3px rgba(181,138,79,.2),
+            3px 5px 12px rgba(0,0,0,.18);
         }
 
         .phase-picking .selected-box {
@@ -529,7 +567,161 @@ const Product = () => {
           mix-blend-mode: multiply;
         }
 
-        /* Mobile: complete showroom fits inside one screen */
+        /* SOLD OUT visual person */
+        .soldout-scene {
+          position: absolute;
+          inset: 0;
+          z-index: 5;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          overflow: hidden;
+          background: linear-gradient(145deg, #eeeae1, #d9d2c5);
+        }
+
+        .soldout-person {
+          position: relative;
+          width: 142px;
+          height: 170px;
+          animation: soldOutPersonEnter .8s ease both;
+        }
+
+        .soldout-speech {
+          position: absolute;
+          top: 10px;
+          left: 50%;
+          z-index: 12;
+          padding: 7px 13px;
+          border: 1px solid #e5d5c1;
+          border-radius: 12px;
+          background: white;
+          color: #b42318;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 1.5px;
+          white-space: nowrap;
+          box-shadow: 0 4px 12px rgba(0,0,0,.12);
+          transform: translateX(-50%);
+          animation: soldOutTalk 1.8s ease-in-out infinite;
+        }
+
+        .soldout-speech::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          bottom: -6px;
+          width: 10px;
+          height: 10px;
+          border-right: 1px solid #e5d5c1;
+          border-bottom: 1px solid #e5d5c1;
+          background: white;
+          transform: translateX(-50%) rotate(45deg);
+        }
+
+        .soldout-head {
+          position: absolute;
+          top: 39px;
+          left: 43px;
+          z-index: 4;
+          width: 43px;
+          height: 43px;
+          border: 2px solid #a56f4e;
+          border-radius: 50%;
+          background: #c98c64;
+        }
+
+        .soldout-hair {
+          position: absolute;
+          top: 33px;
+          left: 40px;
+          z-index: 5;
+          width: 49px;
+          height: 22px;
+          border-radius: 24px 24px 5px 5px;
+          background: #252323;
+        }
+
+        .soldout-body {
+          position: absolute;
+          top: 78px;
+          left: 26px;
+          z-index: 3;
+          width: 78px;
+          height: 78px;
+          border: 1px solid #64766c;
+          border-radius: 17px 17px 5px 5px;
+          background: linear-gradient(120deg, #263e35, #587565);
+        }
+
+        .soldout-leg {
+          position: absolute;
+          top: 145px;
+          z-index: 2;
+          width: 22px;
+          height: 25px;
+          border-radius: 6px 6px 3px 3px;
+          background: #242424;
+        }
+
+        .soldout-leg.left { left: 40px; }
+        .soldout-leg.right { left: 70px; }
+
+        .soldout-arm {
+          position: absolute;
+          top: 91px;
+          left: 84px;
+          z-index: 7;
+          width: 48px;
+          height: 13px;
+          border-radius: 15px;
+          background: #c98c64;
+          transform-origin: 7px 7px;
+          animation: soldOutHand 1.8s ease-in-out infinite;
+        }
+
+        .soldout-phone {
+          position: absolute;
+          top: 68px;
+          left: 111px;
+          z-index: 9;
+          display: flex;
+          width: 27px;
+          height: 48px;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          border: 2px solid #252525;
+          border-radius: 5px;
+          background: #fff;
+          box-shadow: 2px 4px 7px rgba(0,0,0,.22);
+          animation: soldOutPhone 1.8s ease-in-out infinite;
+        }
+
+        .soldout-phone img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+
+        .soldout-phone-fallback {
+          color: #777;
+          font-size: 18px;
+        }
+
+        .soldout-caption {
+          position: absolute;
+          right: 5px;
+          bottom: 7px;
+          left: 5px;
+          z-index: 10;
+          text-align: center;
+          color: #675a47;
+          font-size: 8px;
+          font-weight: 800;
+          letter-spacing: 2px;
+        }
+
+        /* Mobile showroom */
         @media (max-width: 640px) {
           .showroom-screen {
             height: 100vh;
@@ -643,23 +835,10 @@ const Product = () => {
             border-radius: 4px;
           }
 
-          .phone-box::before {
-            inset: 3px;
-          }
-
-          .phone-box-image {
-            height: 39px;
-          }
-
-          .phone-box-top {
-            top: -3px;
-            height: 4px;
-          }
-
-          .phone-box-side {
-            right: -4px;
-            width: 4px;
-          }
+          .phone-box::before { inset: 3px; }
+          .phone-box-image { height: 39px; }
+          .phone-box-top { top: -3px; height: 4px; }
+          .phone-box-side { right: -4px; width: 4px; }
 
           .phone-box .box-brand {
             margin-bottom: 1px;
@@ -673,9 +852,7 @@ const Product = () => {
             line-height: 8px;
           }
 
-          .phone-box .sealed-label {
-            display: none;
-          }
+          .phone-box .sealed-label { display: none; }
 
           .selected-box {
             border-width: 2px;
@@ -822,41 +999,27 @@ const Product = () => {
             font-size: 6px;
           }
 
-          .showroom-footer {
-            display: none;
-          }
+          .showroom-footer { display: none; }
         }
 
         @media (max-width: 360px) {
-          .showroom-header h2 {
-            font-size: 14px;
-          }
+          .showroom-header h2 { font-size: 14px; }
 
           .showroom-dialogue {
             flex-basis: 43px;
             min-height: 43px !important;
           }
 
-          .phone-box {
-            height: 68px;
-          }
-
-          .phone-box-image {
-            height: 34px;
-          }
+          .phone-box { height: 68px; }
+          .phone-box-image { height: 34px; }
 
           .staff-member {
             flex-basis: 47px;
             min-width: 47px;
           }
 
-          .shop-person {
-            transform: scale(.46);
-          }
-
-          .counter-display {
-            height: 56px !important;
-          }
+          .shop-person { transform: scale(.46); }
+          .counter-display { height: 56px !important; }
 
           .counter-display .picked-package {
             height: 44px;
@@ -879,7 +1042,10 @@ const Product = () => {
         @media (prefers-reduced-motion: reduce) {
           .showroom-screen *,
           .showroom-screen *::before,
-          .showroom-screen *::after {
+          .showroom-screen *::after,
+          .soldout-scene *,
+          .soldout-scene *::before,
+          .soldout-scene *::after {
             animation-duration: .01ms !important;
             animation-iteration-count: 1 !important;
             transition-duration: .01ms !important;
@@ -895,7 +1061,6 @@ const Product = () => {
 
           <div className="showroom-content relative z-10 my-auto w-full max-w-6xl">
 
-            {/* Shop Header */}
             <div className="showroom-header mb-5 text-center">
               <p className="brand-label text-[10px] font-bold tracking-[5px] text-[#96764b]">
                 MOBILESPOT
@@ -954,9 +1119,11 @@ const Product = () => {
 
                 <div className="showroom-rack-heading mb-4 flex items-center justify-center gap-3">
                   <span className="h-px flex-1 bg-[#b49a73]" />
+
                   <h3 className="text-xs font-bold tracking-[3px] text-[#59452e] sm:text-sm">
                     SMARTPHONE COLLECTION
                   </h3>
+
                   <span className="h-px flex-1 bg-[#b49a73]" />
                 </div>
 
@@ -1061,13 +1228,14 @@ const Product = () => {
                   <span className="staff-name mt-[-5px] rounded-full bg-[#171717] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
                     OWNER
                   </span>
+
                   <span className="staff-role mt-1 text-[8px] font-semibold text-[#665640]">
                     STORE MANAGER
                   </span>
                 </div>
 
                 {/* Display counter */}
-                <div className="showroom-counter relative mx-1 mb-4 flex min-w-0 flex-1 flex-col items-center sm:mx-5">
+                <div className="showroom-counter relative mx-1 mb-4 flex min-w-0 flex-1 flex-col items-center">
 
                   <div className="counter-display relative flex h-[95px] w-full max-w-[330px] items-center justify-center rounded-t-xl border-x-4 border-t-4 border-white/80 bg-white/30 shadow-inner">
 
@@ -1085,6 +1253,7 @@ const Product = () => {
                         <p className="text-[9px] font-bold tracking-widest text-[#80613a]">
                           READY FOR CUSTOMER
                         </p>
+
                         <p className="mt-1 max-w-[130px] text-[10px] font-bold text-gray-800">
                           {selectedProduct.name}
                         </p>
@@ -1131,6 +1300,7 @@ const Product = () => {
                   <span className="staff-name mt-[-5px] rounded-full bg-[#365b4c] px-4 py-1.5 text-[9px] font-bold tracking-widest text-white">
                     SALESMAN
                   </span>
+
                   <span className="staff-role mt-1 text-[8px] font-semibold text-[#665640]">
                     CUSTOMER SERVICE
                   </span>
@@ -1245,6 +1415,7 @@ const Product = () => {
                 <h2 className="text-sm font-bold text-gray-900">
                   Refine Your Search
                 </h2>
+
                 <p className="text-[11px] text-gray-400">
                   Find exactly what you need
                 </p>
@@ -1269,6 +1440,7 @@ const Product = () => {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
+            {/* Brand */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 BRAND
@@ -1280,6 +1452,7 @@ const Product = () => {
                 className="w-full cursor-pointer rounded-xl border border-[#e9e7e1] bg-[#f8f7f4] px-3 py-3 text-sm font-semibold text-gray-700 outline-none focus:border-black"
               >
                 <option value="">All Brands</option>
+
                 {brands.map((brand) => (
                   <option key={brand} value={brand}>
                     {brand}
@@ -1288,6 +1461,7 @@ const Product = () => {
               </select>
             </div>
 
+            {/* Price */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 PRICE RANGE
@@ -1299,6 +1473,7 @@ const Product = () => {
                 className="w-full cursor-pointer rounded-xl border border-[#e9e7e1] bg-[#f8f7f4] px-3 py-3 text-sm font-semibold text-gray-700 outline-none focus:border-black"
               >
                 <option value="">All Prices</option>
+
                 {priceRanges.map((range) => (
                   <option key={range.label} value={range.label}>
                     {range.label}
@@ -1307,6 +1482,7 @@ const Product = () => {
               </select>
             </div>
 
+            {/* Sorting */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 SORT PRODUCTS
@@ -1323,6 +1499,7 @@ const Product = () => {
               </select>
             </div>
 
+            {/* Availability */}
             <div>
               <label className="mb-2 block text-xs font-bold text-gray-600">
                 AVAILABILITY
@@ -1434,6 +1611,7 @@ const Product = () => {
         {loading && (
           <div className="rounded-2xl border border-gray-100 bg-white p-16 text-center">
             <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-[3px] border-gray-200 border-t-black" />
+
             <p className="text-sm font-semibold text-gray-600">
               Loading mobile phones...
             </p>
@@ -1464,6 +1642,7 @@ const Product = () => {
                 <h2 className="text-xl font-bold text-[#171717]">
                   All Smartphones
                 </h2>
+
                 <p className="mt-1 text-xs text-gray-400">
                   Explore our latest collection
                 </p>
@@ -1484,50 +1663,103 @@ const Product = () => {
                     className="group flex flex-col overflow-hidden rounded-2xl border border-[#ebe9e4] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
                   >
 
-                    {/* Product Image: direct navigation */}
+                    {/* Product Image */}
                     <button
                       type="button"
                       onClick={() => openProduct(product._id)}
                       aria-label={`View ${product.name}`}
-                      className="relative flex h-44 w-full shrink-0 items-center justify-center overflow-hidden bg-[#f5f4f0] p-5 sm:h-52"
+                      className="relative flex h-44 w-full shrink-0 items-center justify-center overflow-hidden bg-[#f5f4f0] sm:h-52"
                     >
-                      {product.discount > 0 && (
-                        <span className="absolute left-3 top-3 z-10 rounded-full bg-black px-2.5 py-1.5 text-[10px] font-bold text-white">
-                          {product.discount}% OFF
-                        </span>
+                      {product.inStock ? (
+                        <>
+                          {product.discount > 0 && (
+                            <span className="absolute left-3 top-3 z-10 rounded-full bg-black px-2.5 py-1.5 text-[10px] font-bold text-white">
+                              {product.discount}% OFF
+                            </span>
+                          )}
+
+                          {product.expressDelivery && (
+                            <span className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1.5 text-[9px] font-bold text-gray-800">
+                              <FiTruck size={11} />
+                              EXPRESS
+                            </span>
+                          )}
+
+                          {product.image ? (
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              loading="lazy"
+                              className="h-full w-full object-contain p-5 transition-transform duration-500 group-hover:scale-110"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = 'flex'
+                                }
+                              }}
+                            />
+                          ) : null}
+
+                          <div className={`flex-col items-center text-gray-400 ${
+                            product.image ? 'hidden' : 'flex'
+                          }`}>
+                            <FiSmartphone className="mb-2 text-5xl" />
+                            <span className="text-xs">
+                              Image unavailable
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        /* SOLD OUT PERSON WITH ACTUAL DATABASE PHONE IMAGE */
+                        <div className="soldout-scene">
+
+                          {/* Person speech bubble */}
+                          <div className="soldout-speech">
+                            SOLD OUT!
+                          </div>
+
+                          {/* Animated person */}
+                          <div className="soldout-person">
+
+                            <div className="soldout-head" />
+                            <div className="soldout-hair" />
+
+                            {/* Eyes */}
+                            <div className="absolute left-[55px] top-[56px] z-[6] flex gap-3">
+                              <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                              <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                            </div>
+
+                            {/* Shirt / body */}
+                            <div className="soldout-body" />
+
+                            {/* Arms */}
+                            <div className="soldout-arm" />
+
+                            {/* Actual product phone image in hand */}
+                            <div className="soldout-phone">
+                              {product.image ? (
+                                <img
+                                  src={product.image}
+                                  alt={`${product.name} phone`}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <FiSmartphone className="soldout-phone-fallback" />
+                              )}
+                            </div>
+
+                            {/* Legs */}
+                            <div className="soldout-leg left" />
+                            <div className="soldout-leg right" />
+                          </div>
+
+                          <div className="soldout-caption">
+                            CURRENTLY UNAVAILABLE
+                          </div>
+                        </div>
                       )}
-
-                      {product.expressDelivery && (
-                        <span className="absolute right-3 top-3 z-10 flex items-center gap-1 rounded-full bg-white px-2 py-1.5 text-[9px] font-bold text-gray-800">
-                          <FiTruck size={11} />
-                          EXPRESS
-                        </span>
-                      )}
-
-                      {product.image ? (
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          loading="lazy"
-                          className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-110"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-
-                            if (e.currentTarget.nextElementSibling) {
-                              e.currentTarget.nextElementSibling.style.display = 'flex'
-                            }
-                          }}
-                        />
-                      ) : null}
-
-                      <div className={`flex-col items-center text-gray-400 ${
-                        product.image ? 'hidden' : 'flex'
-                      }`}>
-                        <FiSmartphone className="mb-2 text-5xl" />
-                        <span className="text-xs">
-                          Image unavailable
-                        </span>
-                      </div>
                     </button>
 
                     {/* Product Details */}
@@ -1537,7 +1769,7 @@ const Product = () => {
                         {product.brand}
                       </p>
 
-                      {/* Title: direct navigation, no showroom animation */}
+                      {/* Product title */}
                       <button
                         type="button"
                         onClick={() => openProduct(product._id)}
@@ -1585,14 +1817,18 @@ const Product = () => {
                         </span>
                       </div>
 
-                      {/* Only this button starts showroom animation */}
+                      {/* View Details / Sold Out */}
                       <button
                         type="button"
                         onClick={() => handleViewDetails(product)}
                         disabled={!product.inStock || showShowroom}
-                        className="mt-auto w-full rounded-xl bg-[#171717] py-3 text-xs font-bold text-white transition hover:bg-[#333] disabled:cursor-not-allowed disabled:opacity-50 sm:text-sm"
+                        className={`mt-auto w-full rounded-xl py-3 text-xs font-bold transition sm:text-sm ${
+                          product.inStock
+                            ? 'bg-[#171717] text-white hover:bg-[#333]'
+                            : 'cursor-not-allowed border border-red-200 bg-red-50 text-red-600'
+                        }`}
                       >
-                        View Details
+                        {product.inStock ? 'View Details' : 'SOLD OUT'}
                       </button>
                     </div>
                   </article>
