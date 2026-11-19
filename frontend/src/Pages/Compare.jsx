@@ -76,9 +76,11 @@ const Compare = () => {
 
     if (!mobile) return
 
-    if (compareMobiles.some(
-      (item) => String(item._id) === String(mobile._id)
-    )) {
+    if (
+      compareMobiles.some(
+        (item) => String(item._id) === String(mobile._id)
+      )
+    ) {
       setError('This mobile is already added.')
       return
     }
@@ -114,17 +116,10 @@ const Compare = () => {
   // Get mobile image
   const getImage = (mobile) => {
     if (Array.isArray(mobile.images) && mobile.images.length > 0) {
-      return typeof mobile.images[0] === 'string'
-        ? mobile.images[0]
-        : mobile.images[0]?.url
+      return mobile.images[0]
     }
 
-    return (
-      mobile.image ||
-      mobile.imageUrl ||
-      mobile.thumbnail ||
-      ''
-    )
+    return mobile.image || mobile.imageUrl || mobile.thumbnail || ''
   }
 
   // Format values
@@ -134,13 +129,11 @@ const Compare = () => {
     }
 
     if (Array.isArray(value)) {
-      return value.join(', ')
+      return value.length ? value.join(', ') : 'Not available'
     }
 
     if (typeof value === 'object') {
-      return Object.entries(value)
-        .map(([key, val]) => `${key}: ${val}`)
-        .join(', ')
+      return Object.values(value).filter(Boolean).join(', ') || 'Not available'
     }
 
     return String(value)
@@ -151,29 +144,60 @@ const Compare = () => {
     { label: 'Brand', key: 'brand' },
     { label: 'Model', key: 'model' },
     { label: 'Price', key: 'price', prefix: 'Rs. ' },
+    { label: 'Old Price', key: 'oldPrice', prefix: 'Rs. ' },
+    { label: 'Discount', key: 'discount', suffix: '%' },
     { label: 'Category', key: 'category' },
-    { label: 'Display', key: 'display' },
-    { label: 'Screen Size', key: 'screenSize' },
-    { label: 'Processor', key: 'processor' },
-    { label: 'RAM', key: 'ram' },
-    { label: 'Storage', key: 'storage' },
-    { label: 'Rear Camera', key: 'rearCamera' },
-    { label: 'Front Camera', key: 'frontCamera' },
-    { label: 'Battery', key: 'battery' },
-    { label: 'Operating System', key: 'operatingSystem' },
-    { label: 'Network', key: 'network' },
-    { label: 'Color', key: 'color' },
+    { label: 'Display', key: 'display', nested: true },
+    { label: 'Processor', key: 'processor', nested: true },
+    { label: 'RAM', key: 'ram', nested: true },
+    { label: 'Storage', key: 'storage', nested: true },
+    { label: 'Rear Camera', key: 'rearCamera', nested: true },
+    { label: 'Front Camera', key: 'frontCamera', nested: true },
+    { label: 'Battery', key: 'battery', nested: true },
+    { label: 'Operating System', key: 'operatingSystem', nested: true },
+    { label: 'Network', key: 'network', nested: true },
+    { label: 'Available Colors', key: 'colors' },
+    { label: 'Stock', key: 'stock' },
+    { label: 'Rating', key: 'rating' },
+    { label: 'Express Delivery', key: 'expressDelivery' },
     { label: 'Description', key: 'description' }
   ]
 
+  // Get specification value
+  const getSpecificationValue = (mobile, row) => {
+    let value
+
+    if (row.nested) {
+      value = mobile.specifications?.[row.key]
+    } else {
+      value = mobile[row.key]
+    }
+
+    if (row.key === 'expressDelivery') {
+      return value ? 'Available' : 'Not Available'
+    }
+
+    if (row.key === 'rating' && value !== undefined) {
+      return `${value} / 5`
+    }
+
+    if (row.key === 'price' || row.key === 'oldPrice') {
+      return value ? `${row.prefix}${formatValue(value)}` : 'Not available'
+    }
+
+    if (row.suffix && value !== undefined && value !== '') {
+      return `${formatValue(value)}${row.suffix}`
+    }
+
+    return formatValue(value)
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10 font-[Arial] sm:px-6 lg:px-10">
-
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-
           <div>
             <Link
               to="/"
@@ -188,7 +212,7 @@ const Compare = () => {
             </h1>
 
             <p className="mt-2 text-sm text-gray-500">
-              Compare specifications and find the right mobile for you.
+              Compare mobile specifications side by side.
             </p>
           </div>
 
@@ -214,7 +238,6 @@ const Compare = () => {
         {/* Add Mobile */}
         {compareMobiles.length < 3 && (
           <div className="mb-8 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row">
-
             <select
               value={selectedMobile}
               onChange={(e) => {
@@ -261,7 +284,6 @@ const Compare = () => {
         {/* Empty State */}
         {!loading && compareMobiles.length === 0 && (
           <div className="rounded-xl border border-dashed border-gray-300 bg-white px-5 py-16 text-center">
-
             <FiSmartphone className="mx-auto mb-4 text-5xl text-gray-300" />
 
             <h2 className="text-xl font-bold text-black">
@@ -352,30 +374,23 @@ const Compare = () => {
                     gridTemplateColumns: `repeat(${compareMobiles.length}, minmax(0, 1fr))`
                   }}
                 >
-                  {compareMobiles.map((mobile) => {
-                    const value = mobile[row.key]
+                  {compareMobiles.map((mobile) => (
+                    <div
+                      key={`${mobile._id}-${row.key}`}
+                      className="min-w-0 border-r border-gray-100 p-4 last:border-r-0"
+                    >
+                      <p className="mb-1 text-xs font-semibold text-gray-400 sm:hidden">
+                        {row.label}
+                      </p>
 
-                    return (
-                      <div
-                        key={`${mobile._id}-${row.key}`}
-                        className="min-w-0 border-r border-gray-100 p-4 last:border-r-0"
-                      >
-                        <p className="mb-1 text-xs font-semibold text-gray-400 sm:hidden">
-                          {row.label}
-                        </p>
-
-                        <p className="break-words text-center text-xs text-gray-700 sm:text-sm">
-                          {row.prefix && value
-                            ? `${row.prefix}${formatValue(value)}`
-                            : formatValue(value)}
-                        </p>
-                      </div>
-                    )
-                  })}
+                      <p className="break-words text-center text-xs text-gray-700 sm:text-sm">
+                        {getSpecificationValue(mobile, row)}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
-
           </div>
         )}
 
