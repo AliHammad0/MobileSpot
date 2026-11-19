@@ -1819,8 +1819,9 @@ const Product = () => {
                   >                    {/* Product Image */}
                     <button
                       type="button"
-                      onClick={() => openProduct(product._id)}
-                      aria-label={`View ${product.name}`}
+                       onClick={() => handleViewDetails(product)}
+                        disabled={!product.inStock || showShowroom}
+                        className={`mt-auto w-full rounded-xl py-3 text-xs font-bold transition sm:text-sm`}
                       className="relative flex h-44 w-full shrink-0 items-center justify-center overflow-hidden bg-[#f5f4f0] sm:h-52"
                     >
                       {product.inStock ? (
