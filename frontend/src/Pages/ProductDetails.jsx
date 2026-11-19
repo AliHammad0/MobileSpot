@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { addToCart } from '../redux/slices/cartSlice'
 
@@ -24,6 +23,7 @@ const tabs = ['Specifications', 'Installment Plans', 'Reviews', 'FAQs']
 const ProductDetails = () => {
   const { id } = useParams()
   const dispatch = useDispatch()
+  const navigate = useNavigate()
 
   const [product, setProduct] = useState(null)
   const [similarMobiles, setSimilarMobiles] = useState([])
@@ -39,12 +39,13 @@ const ProductDetails = () => {
   const [activeImage, setActiveImage] = useState(0)
   const [activeTab, setActiveTab] = useState('Specifications')
   const [showCoverage, setShowCoverage] = useState(false)
-  const [compare, setCompare] = useState(false)
+
   const [shared, setShared] = useState(false)
   const [addedToCart, setAddedToCart] = useState(false)
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [flyToCart, setFlyToCart] = useState(false)
   const [imageZoomed, setImageZoomed] = useState(false)
+
   const [reviews, setReviews] = useState([])
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [reviewsError, setReviewsError] = useState('')
@@ -170,9 +171,7 @@ const ProductDetails = () => {
     }
 
     fetchSimilarMobiles()
-  }, [product?._id, product?.brand])
-
-  // Scroll Reveal
+  }, [product?._id, product?.brand])  // Scroll Reveal
   useEffect(() => {
     const elements = document.querySelectorAll('.reveal-on-scroll')
 
@@ -253,6 +252,48 @@ const ProductDetails = () => {
       setAddedToCart(false)
       setFlyToCart(false)
     }, 900)
+  }
+
+  // Add Current Mobile To Compare
+  const handleCompare = () => {
+    if (!product?._id) return
+
+    try {
+      const savedCompare = JSON.parse(
+        localStorage.getItem('mobile-compare') || '[]'
+      )
+
+      const compareList = Array.isArray(savedCompare)
+        ? savedCompare
+        : []
+
+      const alreadyAdded = compareList.some(
+        (mobile) => String(mobile._id) === String(product._id)
+      )
+
+      if (alreadyAdded) {
+        navigate('/compare')
+        return
+      }
+
+      if (compareList.length >= 3) {
+        alert('You can compare maximum 3 mobiles at a time.')
+        navigate('/compare')
+        return
+      }
+
+      const updatedCompare = [...compareList, product]
+
+      localStorage.setItem(
+        'mobile-compare',
+        JSON.stringify(updatedCompare)
+      )
+
+      navigate('/compare')
+    } catch (error) {
+      console.error('Compare error:', error)
+      alert('Unable to add this mobile to comparison.')
+    }
   }
 
   // Share Product
@@ -427,9 +468,7 @@ const ProductDetails = () => {
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Product Information */}
+        </div>        {/* Product Information */}
         <div className="reveal-on-scroll stagger-children">
 
           <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-gray-400">
@@ -694,14 +733,10 @@ const ProductDetails = () => {
 
               <button
                 type="button"
-                onClick={() => setCompare(!compare)}
-                className={`rounded-lg border px-5 py-4 text-sm font-bold transition ${
-                  compare
-                    ? 'border-black bg-black text-white'
-                    : 'border-gray-300 text-black hover:border-black'
-                }`}
+                onClick={handleCompare}
+                className="rounded-lg border border-gray-300 px-5 py-4 text-sm font-bold text-black transition hover:border-black hover:bg-gray-50"
               >
-                {compare ? 'Added' : 'Compare'}
+                Compare
               </button>
             </div>
 
@@ -721,16 +756,8 @@ const ProductDetails = () => {
               Product successfully added to your cart.
             </p>
           )}
-
-          {compare && (
-            <p className="mt-2 text-xs text-green-700">
-              {product.name} selected for comparison.
-            </p>
-          )}
         </div>
-      </section>
-
-      {/* Warranty Challenge */}
+      </section>      {/* Warranty Challenge */}
       <section className="reveal-on-scroll mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
         <div className="rounded-2xl bg-black p-6 text-white sm:p-8">
           <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
@@ -967,9 +994,7 @@ const ProductDetails = () => {
                 Check the provider for eligibility and installment details.
               </p>
             </div>
-          )}
-
-          {/* Reviews */}
+          )}          {/* Reviews */}
           {activeTab === 'Reviews' && (
             <div className="rounded-2xl border border-gray-100 bg-white p-5 sm:p-7">
               <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

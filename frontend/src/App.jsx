@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react'
 import {
   BrowserRouter,
@@ -16,6 +15,7 @@ import CraziestDeals from './Pages/CraziestDeals'
 import ProductDetails from './Pages/ProductDetails'
 import BrandProducts from './Pages/BrandProducts'
 import Search from './Pages/Search'
+import Compare from './Pages/Compare'
 import Login from './Pages/Login'
 import Signup from './Pages/Signup'
 import Profile from './Pages/Profile'
@@ -88,6 +88,9 @@ const App = () => {
 
           <Route path="/craziest-deals" element={<CraziestDeals />} />
           <Route path="/product/:id" element={<ProductDetails />} />
+
+          {/* Mobile Comparison */}
+          <Route path="/compare" element={<Compare />} />
 
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
