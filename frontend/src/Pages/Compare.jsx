@@ -57,6 +57,7 @@ const FeatureCard = ({ icon: Icon, title, value, className = '', delay = '' }) =
 )
 
 // Person holding actual mobile image
+
 const MobileTester = ({
   mobile,
   side,
@@ -67,10 +68,18 @@ const MobileTester = ({
   const image = getMobileImage(mobile)
 
   return (
-    <div className={`tester tester-${side} absolute bottom-0 ${side === 'left' ? 'left-[5%]' : 'right-[5%]'}`}>
-      {/* Person head */}
+    <div
+      className={`tester tester-${side} absolute bottom-0 z-20 h-48 w-52 ${
+        side === 'left'
+          ? 'left-[2%]'
+          : 'right-[2%]'
+      }`}
+    >
+      {/* Person Head */}
       <div
-        className={`tester-head absolute z-20 h-14 w-14 rounded-full border-[3px] border-gray-800 bg-amber-200 ${side === 'left' ? 'left-9' : 'right-9'}`}
+        className={`tester-head absolute top-2 z-30 h-14 w-14 rounded-full border-[3px] border-gray-800 bg-amber-200 ${
+          side === 'left' ? 'left-8' : 'right-8'
+        }`}
         style={{ animationDelay: delay }}
       >
         <div className="absolute left-3 top-6 h-1.5 w-1.5 rounded-full bg-gray-900" />
@@ -79,31 +88,37 @@ const MobileTester = ({
         <div className="absolute -top-1 left-0 h-5 w-full rounded-t-full bg-gray-900" />
       </div>
 
-      {/* Person body */}
+      {/* Person Body */}
       <div
-        className="absolute bottom-0 h-28 w-32 rounded-t-[48px] border-[3px] border-gray-800"
-        style={{
-          backgroundColor: color,
-          left: side === 'left' ? '0' : 'auto',
-          right: side === 'right' ? '0' : 'auto'
-        }}
+        className={`absolute bottom-0 h-28 w-32 rounded-t-[48px] border-[3px] border-gray-800 ${
+          side === 'left' ? 'left-0' : 'right-0'
+        }`}
+        style={{ backgroundColor: color }}
       />
 
-      {/* Arm holding phone */}
+      {/* Person Arm */}
       <div
-        className={`tester-arm absolute top-[76px] z-20 h-5 w-20 rounded-full border-[3px] border-gray-800 bg-amber-200 ${side === 'left' ? 'left-[75px] origin-left' : 'right-[75px] origin-right'}`}
+        className={`tester-arm absolute top-[78px] z-30 h-5 w-24 rounded-full border-[3px] border-gray-800 bg-amber-200 ${
+          side === 'left'
+            ? 'left-[72px] origin-left'
+            : 'right-[72px] origin-right'
+        }`}
         style={{ animationDelay: delay }}
       />
 
-      {/* Actual product image in hand */}
+      {/* Actual Database Product Image in Hand */}
       <div
-        className={`tester-phone absolute top-[48px] z-30 flex h-[105px] w-[65px] items-center justify-center overflow-hidden rounded-xl border-[4px] border-gray-800 bg-white p-1 shadow-xl ${side === 'left' ? 'left-[118px]' : 'right-[118px]'}`}
+        className={`tester-phone absolute top-[48px] z-40 flex h-[110px] w-[68px] items-center justify-center overflow-hidden rounded-xl border-[4px] border-gray-800 bg-white p-1 shadow-xl ${
+          side === 'left'
+            ? 'left-[112px]'
+            : 'right-[112px]'
+        }`}
         style={{ animationDelay: delay }}
       >
         {image ? (
           <img
             src={image}
-            alt={mobile?.name || 'Mobile phone'}
+            alt={mobile?.name || mobile?.model || 'Mobile'}
             className="h-full w-full rounded-lg object-contain"
           />
         ) : (
@@ -111,15 +126,18 @@ const MobileTester = ({
         )}
       </div>
 
-      {/* Person label */}
+      {/* Person Name */}
       <div
-        className={`absolute -top-7 z-30 whitespace-nowrap rounded-full bg-white px-3 py-1 text-[10px] font-bold text-gray-700 shadow ${side === 'left' ? 'left-5' : 'right-5'}`}
+        className={`absolute -top-6 z-40 whitespace-nowrap rounded-full bg-white px-3 py-1 text-[10px] font-bold text-gray-700 shadow ${
+          side === 'left' ? 'left-2' : 'right-2'
+        }`}
       >
         {personName}
       </div>
     </div>
   )
 }
+
 
 // Main animation section
 const CompareAnimation = ({ firstMobile, secondMobile }) => {
