@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+
 import {
   FiGrid,
   FiPackage,
@@ -32,8 +33,13 @@ const navigation = [
   { name: 'Settings', path: '/admin/settings', icon: FiSettings }
 ]
 
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
 const AdminLayout = () => {
+  const navigate = useNavigate()
+
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [verified, setVerified] = useState(false)
   const [email, setEmail] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('user') || '{}').email || ''
@@ -42,11 +48,17 @@ const AdminLayout = () => {
     }
   })
 
-  const [verified, setVerified] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [doorOpen, setDoorOpen] = useState(false)
+  const [stage, setStage] = useState('idle')
   const [error, setError] = useState('')
-  const navigate = useNavigate()
+
+  const userName = (() => {
+    try {
+      return JSON.parse(localStorage.getItem('user') || '{}').name || 'Administrator'
+    } catch {
+      return 'Administrator'
+    }
+  })()
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -65,28 +77,26 @@ const AdminLayout = () => {
     }
 
     if (!email.trim()) {
-      setError('Please enter your admin email.')
+      setError('Please enter your administrator email.')
       return
     }
 
     setError('')
     setLoading(true)
-    setDoorOpen(false)
+    setStage('checking')
 
     try {
-      const response = await fetch(
-        `${API_URL}/users/verify-admin-email`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            email: email.trim().toLowerCase()
-          })
-        }
-      )
+      // First verify email from backend database
+      const response = await fetch(`${API_URL}/users/verify-admin-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase()
+        })
+      })
 
       const data = await response.json()
 
@@ -94,150 +104,183 @@ const AdminLayout = () => {
         throw new Error(data.message || 'Admin verification failed.')
       }
 
-      setLoading(false)
-      setDoorOpen(true)
+      // Animation starts only after successful backend verification
+      setStage('walking')
+      await wait(1400)
 
-      // Door animation complete hone ke baad dashboard reveal hoga
-      setTimeout(() => {
-        setVerified(true)
-      }, 1800)
+      setStage('unlocking')
+      await wait(900)
+
+      setStage('opening')
+      await wait(1300)
+
+      setStage('complete')
+      await wait(350)
+
+      setVerified(true)
 
     } catch (err) {
+      setStage('denied')
+      setError(err.message || 'Unable to verify administrator.')
+    } finally {
       setLoading(false)
-      setError(err.message || 'Something went wrong. Please try again.')
     }
   }
 
-  const userName = (() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || '{}').name || 'Administrator'
-    } catch {
-      return 'Administrator'
-    }
-  })()
-
   if (!verified) {
     return (
-      <div className="min-h-screen bg-[#f5f3ee] font-[Arial,sans-serif] flex items-center justify-center p-4 overflow-hidden">
+      <div className="min-h-screen bg-[#f5f3ee] font-[Arial,sans-serif] flex items-center justify-center p-4">
         <style>{`
           @keyframes characterWalk {
-            0% { transform: translateX(-100px); }
-            65% { transform: translateX(115px); }
-            100% { transform: translateX(115px); }
+            0% { transform: translateX(0); }
+            100% { transform: translateX(145px); }
           }
 
-          @keyframes legWalk {
-            0%, 100% { transform: rotate(22deg); }
-            50% { transform: rotate(-22deg); }
+          @keyframes legMove {
+            0%, 100% { transform: rotate(25deg); }
+            50% { transform: rotate(-25deg); }
           }
 
-          @keyframes armWalk {
+          @keyframes armMove {
             0%, 100% { transform: rotate(-25deg); }
             50% { transform: rotate(25deg); }
           }
 
-          @keyframes keyUnlock {
-            0%, 55% { transform: rotate(0deg); }
-            75%, 100% { transform: rotate(65deg); }
+          @keyframes keyTurn {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(85deg); }
           }
 
-          @keyframes doorOpen {
-            0% { transform: perspective(900px) rotateY(0deg); }
-            100% { transform: perspective(900px) rotateY(-85deg); }
+          @keyframes doorSwing {
+            0% { transform: perspective(800px) rotateY(0deg); }
+            100% { transform: perspective(800px) rotateY(-100deg); }
           }
 
-          @keyframes glowPulse {
-            0%, 100% { opacity: .35; }
-            50% { opacity: 1; }
+          @keyframes lightGlow {
+            0% { opacity: .2; }
+            100% { opacity: 1; }
           }
 
-          @keyframes reveal {
+          @keyframes deniedShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-7px); }
+            75% { transform: translateX(7px); }
+          }
+
+          @keyframes dashboardReveal {
             from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
           }
 
-          .character-walk {
-            animation: characterWalk 1.7s ease-in-out forwards;
+          .character-walking {
+            animation: characterWalk 1.4s ease-in-out forwards;
           }
 
-          .character-legs {
+          .character-leg {
             transform-origin: top center;
-            animation: legWalk .25s infinite;
           }
 
-          .character-arms {
+          .character-walking .character-leg {
+            animation: legMove .24s infinite;
+          }
+
+          .character-walking .character-arm {
+            animation: armMove .24s infinite;
+          }
+
+          .character-unlocking .character-arm {
+            transform: rotate(-65deg);
             transform-origin: top center;
-            animation: armWalk .25s infinite;
+            transition: transform .4s ease;
           }
 
-          .unlock-key {
-            animation: keyUnlock 1.7s ease-in-out forwards;
+          .key-turning {
+            animation: keyTurn .8s ease-in-out forwards;
             transform-origin: center;
           }
 
           .door-opening {
-            animation: doorOpen 1.3s ease-in-out forwards;
+            animation: doorSwing 1.2s ease-in-out forwards;
             transform-origin: left center;
           }
 
-          .door-glow {
-            animation: glowPulse 1s infinite;
+          .inside-light {
+            animation: lightGlow 1s ease forwards;
           }
 
-          .reveal-content {
-            animation: reveal .7s ease-out forwards;
+          .denied-animation {
+            animation: deniedShake .35s ease;
+          }
+
+          .dashboard-reveal {
+            animation: dashboardReveal .6s ease-out;
           }
         `}</style>
 
         <div className="w-full max-w-5xl grid lg:grid-cols-2 bg-white rounded-[28px] overflow-hidden shadow-2xl border border-[#e8e3d9]">
 
-          {/* Left Animation Section */}
-          <div className="bg-[#111111] text-white min-h-[420px] lg:min-h-[570px] flex flex-col items-center justify-center p-6 relative overflow-hidden">
+          {/* LEFT: CHARACTER AND DOOR ANIMATION */}
+          <section className="bg-[#111111] text-white min-h-[470px] lg:min-h-[590px] flex flex-col items-center justify-center p-6 relative overflow-hidden">
 
-            <div className="absolute top-8 left-8">
-              <div className="flex items-center gap-3">
-                <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center">
-                  <FiSmartphone className="text-black text-2xl" />
-                </div>
-                <div>
-                  <h2 className="font-bold text-lg">MobileSpot</h2>
-                  <p className="text-[10px] text-gray-400 tracking-[3px] uppercase">
-                    Secure Admin
-                  </p>
-                </div>
+            <div className="absolute top-8 left-8 flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white flex items-center justify-center">
+                <FiSmartphone className="text-black text-2xl" />
+              </div>
+
+              <div>
+                <h2 className="font-bold text-lg">MobileSpot</h2>
+                <p className="text-[10px] text-gray-400 tracking-[3px] uppercase">
+                  Secure Admin
+                </p>
               </div>
             </div>
 
             <div className="text-center mt-14 mb-5">
               <h2 className="text-2xl font-bold">
-                {doorOpen ? 'Access Granted' : loading ? 'Verifying Identity' : 'The Admin Entrance'}
+                {stage === 'checking' && 'Checking Credentials'}
+                {stage === 'walking' && 'Welcome Administrator'}
+                {stage === 'unlocking' && 'Unlocking Entrance'}
+                {stage === 'opening' && 'Access Granted'}
+                {stage === 'complete' && 'Welcome Inside'}
+                {stage === 'denied' && 'Access Denied'}
+                {stage === 'idle' && 'The Admin Entrance'}
               </h2>
+
               <p className="text-sm text-gray-400 mt-2">
-                {doorOpen
-                  ? 'Your secure entrance is opening'
-                  : loading
-                    ? 'Checking your admin credentials'
-                    : 'Only authorized administrators can enter'}
+                {stage === 'checking' && 'Verifying your email with our database'}
+                {stage === 'walking' && 'Our staff is approaching the entrance'}
+                {stage === 'unlocking' && 'The key is unlocking the door'}
+                {stage === 'opening' && 'Opening your secure entrance'}
+                {stage === 'complete' && 'Preparing your dashboard'}
+                {stage === 'denied' && 'This account cannot enter'}
+                {stage === 'idle' && 'Only authorized administrators can enter'}
               </p>
             </div>
 
-            {/* Door and Character Animation */}
+            {/* DOOR SCENE */}
             <div className="relative w-full max-w-[390px] h-[285px] flex items-end justify-center">
 
               {/* Floor */}
               <div className="absolute bottom-0 w-full h-[7px] bg-[#5b5145] rounded-full" />
 
-              {/* Door Frame */}
-              <div className="absolute bottom-[7px] right-[30px] sm:right-[55px] w-[150px] h-[235px] border-[8px] border-[#8b7960] bg-[#29231d] rounded-t-lg">
+              {/* Door frame */}
+              <div className="absolute bottom-[7px] right-[25px] sm:right-[45px] w-[155px] h-[235px] border-[8px] border-[#8b7960] bg-[#29231d] rounded-t-lg">
 
-                {/* Door */}
+                {/* Light behind door */}
+                <div
+                  className={`absolute inset-0 bg-[#f2d39b] ${
+                    stage === 'opening' || stage === 'complete' ? 'inside-light' : ''
+                  }`}
+                />
+
+                {/* Door panel */}
                 <div
                   className={`absolute inset-0 bg-[#a58b6a] border border-[#c2a783] rounded-sm ${
-                    doorOpen ? 'door-opening' : ''
+                    stage === 'opening' || stage === 'complete' ? 'door-opening' : ''
                   }`}
                   style={{
                     transformStyle: 'preserve-3d',
-                    zIndex: 2
+                    zIndex: 3
                   }}
                 >
                   <div className="absolute inset-3 border border-[#d2b998]/60 rounded-sm" />
@@ -245,15 +288,14 @@ const AdminLayout = () => {
                   <div className="absolute bottom-5 left-5 right-5 h-[85px] border border-[#d2b998]/50 rounded-sm" />
                   <div className="absolute right-3 top-1/2 w-3 h-3 rounded-full bg-[#e8c47e] shadow-lg" />
                 </div>
-
-                {/* Inside light */}
-                <div className={`absolute inset-0 bg-[#e9c98b] ${doorOpen ? 'door-glow' : ''}`} />
               </div>
 
-              {/* Character */}
+              {/* CHARACTER */}
               <div
-                className={`absolute bottom-[5px] left-[10px] sm:left-[35px] w-[100px] h-[175px] ${
-                  loading ? 'character-walk' : ''
+                className={`absolute bottom-[5px] left-[5px] sm:left-[25px] w-[100px] h-[175px] ${
+                  stage === 'walking' ? 'character-walking' : ''
+                } ${
+                  stage === 'unlocking' ? 'character-unlocking' : ''
                 }`}
                 style={{ zIndex: 5 }}
               >
@@ -272,47 +314,52 @@ const AdminLayout = () => {
                 </div>
 
                 {/* Arms */}
-                <div className="character-arms absolute top-[45px] left-[12px] w-[17px] h-[55px] bg-[#d8d0c0] rounded-full" />
-                <div
-                  className={`absolute top-[48px] right-[4px] w-[15px] h-[53px] bg-[#c99068] rounded-full ${
-                    loading ? 'character-arms' : ''
-                  }`}
-                />
+                <div className="character-arm absolute top-[45px] left-[12px] w-[17px] h-[55px] bg-[#d8d0c0] rounded-full" />
 
-                {/* Key */}
-                {loading && (
-                  <div className="absolute top-[83px] right-[-10px] unlock-key text-[#e8c47e]">
-                    <FiKey size={27} />
-                  </div>
-                )}
+                <div className="character-arm absolute top-[48px] right-[4px] w-[15px] h-[53px] bg-[#c99068] rounded-full">
+                  {(stage === 'unlocking' || stage === 'opening') && (
+                    <div className="absolute top-[35px] right-[-17px] text-[#e8c47e] key-turning">
+                      <FiKey size={27} />
+                    </div>
+                  )}
+                </div>
 
                 {/* Legs */}
                 <div className="absolute top-[108px] left-[31px] flex gap-2">
-                  <div className="character-legs w-[15px] h-[48px] bg-[#303b4a] rounded-full">
+                  <div className="character-leg relative w-[15px] h-[48px] bg-[#303b4a] rounded-full">
                     <div className="absolute bottom-0 -left-2 w-[23px] h-[9px] bg-[#d8d0c0] rounded-full" />
                   </div>
-                  <div className="character-legs w-[15px] h-[48px] bg-[#303b4a] rounded-full">
+
+                  <div className="character-leg relative w-[15px] h-[48px] bg-[#303b4a] rounded-full">
                     <div className="absolute bottom-0 -right-2 w-[23px] h-[9px] bg-[#d8d0c0] rounded-full" />
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* Animation status */}
             <div className="mt-6 flex items-center gap-2 text-xs text-gray-400">
               <FiShield className="text-[#d8d0c0]" />
               <span>Protected Administrator Entrance</span>
             </div>
 
-            {doorOpen && (
+            {stage === 'complete' && (
               <div className="mt-3 flex items-center gap-2 text-sm text-green-400">
                 <FiCheck />
                 Identity verified successfully
               </div>
             )}
-          </div>
 
-          {/* Right Verification Section */}
-          <div className="p-7 sm:p-10 lg:p-12 flex flex-col justify-center">
+            {stage === 'denied' && (
+              <div className="mt-3 flex items-center gap-2 text-sm text-red-400">
+                <FiAlertCircle />
+                Administrator access rejected
+              </div>
+            )}
+          </section>
+
+          {/* RIGHT: EMAIL VERIFICATION */}
+          <section className="p-7 sm:p-10 lg:p-12 flex flex-col justify-center">
 
             <div className="w-14 h-14 bg-[#f1eee7] rounded-2xl flex items-center justify-center mb-7">
               <FiLock className="text-2xl text-[#29251e]" />
@@ -345,16 +392,17 @@ const AdminLayout = () => {
                   onChange={(e) => {
                     setEmail(e.target.value)
                     setError('')
+                    if (stage === 'denied') setStage('idle')
                   }}
                   placeholder="Enter your admin email"
-                  disabled={loading || doorOpen}
+                  disabled={loading || stage === 'opening' || stage === 'complete'}
                   required
                   className="w-full h-14 pl-12 pr-4 rounded-xl border border-gray-200 bg-[#faf9f6] text-sm outline-none focus:border-black focus:ring-2 focus:ring-black/5 transition disabled:opacity-60"
                 />
               </div>
 
               {error && (
-                <div className="mt-4 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl p-3 text-red-600 text-xs leading-5">
+                <div className="mt-4 flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl p-3 text-red-600 text-xs leading-5 denied-animation">
                   <FiAlertCircle className="text-base shrink-0 mt-0.5" />
                   <span>{error}</span>
                 </div>
@@ -362,18 +410,13 @@ const AdminLayout = () => {
 
               <button
                 type="submit"
-                disabled={loading || doorOpen}
+                disabled={loading}
                 className="mt-6 w-full h-14 bg-[#111111] hover:bg-[#292929] text-white rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
                     <FiLoader className="animate-spin text-lg" />
-                    Verifying Email...
-                  </>
-                ) : doorOpen ? (
-                  <>
-                    <FiCheck className="text-lg" />
-                    Door Unlocked
+                    {stage === 'checking' ? 'Verifying Email...' : 'Unlocking Door...'}
                   </>
                 ) : (
                   <>
@@ -387,7 +430,7 @@ const AdminLayout = () => {
             <div className="mt-8 pt-6 border-t border-gray-100 flex items-start gap-3">
               <FiShield className="text-gray-400 text-lg shrink-0 mt-0.5" />
               <p className="text-xs text-gray-400 leading-5">
-                Your access is checked against the MobileSpot database. Only active administrator accounts can enter.
+                Access is checked against the MobileSpot database. Only active administrator accounts can enter.
               </p>
             </div>
 
@@ -398,14 +441,14 @@ const AdminLayout = () => {
             >
               Back to Login
             </button>
-          </div>
+          </section>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f7f4] font-[Arial,sans-serif] reveal-content">
+    <div className="min-h-screen bg-[#f8f7f4] font-[Arial,sans-serif] dashboard-reveal">
 
       {/* Mobile Overlay */}
       {sidebarOpen && (
