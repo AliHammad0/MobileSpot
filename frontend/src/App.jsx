@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react'
 import {
   BrowserRouter,
@@ -27,6 +28,7 @@ import Contact from './components/Contact'
 import FAQs from './components/FAQs'
 import AddProduct from './Pages/AddProduct'
 import AllUsers from './Admin/AllUsers'
+import AllProducts from './Admin/AllProducts'
 import Shipping from './components/Shipping'
 import Returns from './components/Returns'
 import Checkout from './Pages/Checkout'
@@ -88,8 +90,6 @@ const App = () => {
 
           <Route path="/craziest-deals" element={<CraziestDeals />} />
           <Route path="/product/:id" element={<ProductDetails />} />
-
-          {/* Mobile Comparison */}
           <Route path="/compare" element={<Compare />} />
 
           <Route path="/login" element={<Login />} />
@@ -105,21 +105,19 @@ const App = () => {
           <Route path="/returns" element={<Returns />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/edit-profile" element={<EditProfile />} />
-
-          {/* Lucky Spin */}
           <Route path="/lucky-spin" element={<LuckySpin />} />
-
-          {/* Customer Support Chat */}
           <Route path="/chat" element={<SupportChat />} />
 
-          {/* Admin Protected Routes */}
+          {/* Protected Admin Routes */}
           <Route element={<ProtectedAdminRoute />}>
-            <Route path="/add" element={<AddProduct />} />
-            <Route path="/all" element={<AllUsers />} />
-            <Route path="/admin" element={<Dashboard />} />
-            <Route path="/lay" element={<AdminLayout />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/chats" element={<ChatInbox />} />
+            <Route element={<AdminLayout />}>
+              <Route path="/admin" element={<Dashboard />} />
+              <Route path="/admin/products" element={<AllProducts />} />
+              <Route path="/add" element={<AddProduct />} />
+              <Route path="/all" element={<AllUsers />} />
+              <Route path="/admin/orders" element={<AdminOrders />} />
+              <Route path="/admin/chats" element={<ChatInbox />} />
+            </Route>
           </Route>
         </Routes>
       </div>
