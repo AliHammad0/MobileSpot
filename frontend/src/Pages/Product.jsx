@@ -89,7 +89,7 @@ const Product = () => {
 
     navigationTimer.current = setTimeout(() => {
       navigate(`/product/${product._id}`)
-    }, 1000)
+    }, 4000)
   }
 
   useEffect(() => {
