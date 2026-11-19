@@ -23,7 +23,7 @@ const navigation = [
   },
   {
     name: 'All Products',
-    path: '/products',
+    path: '/admin/products',
     icon: FiPackage
   },
   {
