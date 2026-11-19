@@ -10,7 +10,8 @@ import {
   getMyProfile,
   updateMyProfile,
   updateUser,
-  deleteUser
+  deleteUser,
+  verifyAdminEmail
 } from '../controller/users.js'
 
 import { protect, admin } from '../middleware/auth.js'
@@ -25,6 +26,9 @@ userRoutes.post('/google-login', googleLogin)
 // Logged-in User Routes
 userRoutes.get('/me', protect, getMyProfile)
 userRoutes.put('/me', protect, updateMyProfile)
+
+// Admin Email Verification
+userRoutes.post('/verify-admin-email', protect, verifyAdminEmail)
 
 // Admin Routes
 userRoutes.get('/', protect, admin, getAllUsers)

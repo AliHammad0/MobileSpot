@@ -418,3 +418,65 @@ export const deleteUser = async (req, res) => {
     })
   }
 }
+
+// Verify Admin Email
+export const verifyAdminEmail = async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Please enter your admin email.'
+      })
+    }
+
+    if (!req.user || !req.user._id) {
+      return res.status(401).json({
+        ok: false,
+        message: 'Please login first.'
+      })
+    }
+
+    const user = await User.findById(req.user._id)
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Account is not active.'
+      })
+    }
+
+    const enteredEmail = email.trim().toLowerCase()
+
+    if (user.email !== enteredEmail) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Email does not match your logged-in account.'
+      })
+    }
+
+    if (user.isAdmin !== true) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Admin access denied.'
+      })
+    }
+
+    return res.status(200).json({
+      ok: true,
+      message: 'Admin email verified successfully!',
+      user: {
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin
+      }
+    })
+
+  } catch (error) {
+    return res.status(500).json({
+      ok: false,
+      message: error.message
+    })
+  }
+}
