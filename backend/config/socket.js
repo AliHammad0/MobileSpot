@@ -38,12 +38,29 @@ const initializeSocket = (httpServer) => {
     }
   })
 
+  // Check whether customer has another active socket in this room
+  const isCustomerOnline = async (conversationId) => {
+    const sockets = await io
+      .in(conversationId.toString())
+      .fetchSockets()
+
+    return sockets.some(
+      (connectedSocket) =>
+        !connectedSocket.user?.isAdmin
+    )
+  }
+
   io.on('connection', (socket) => {
     console.log('Authenticated user connected:', socket.user._id)
 
     // Join conversation room
     socket.on('join_conversation', async (conversationId) => {
       try {
+        if (!conversationId) {
+          socket.emit('chat_error', 'Conversation ID is required')
+          return
+        }
+
         const conversation = await Conversation.findById(conversationId)
 
         if (!conversation) {
@@ -61,13 +78,54 @@ const initializeSocket = (httpServer) => {
           return
         }
 
-        socket.join(conversationId.toString())
+        const room = conversationId.toString()
+
+        socket.join(room)
 
         socket.emit('joined_conversation', {
-          conversationId: conversationId.toString()
+          conversationId: room
+        })
+
+        // Send current customer online status to everyone in the room
+        const customerOnline = await isCustomerOnline(room)
+
+        io.to(room).emit('participant_status', {
+          conversationId: room,
+          role: 'customer',
+          online: customerOnline
         })
       } catch (error) {
+        console.log('Join conversation error:', error.message)
         socket.emit('chat_error', 'Unable to join conversation')
+      }
+    })
+
+    // Typing indicator
+    socket.on('typing', async (data) => {
+      try {
+        const { conversationId, isTyping } = data || {}
+
+        if (
+          !conversationId ||
+          typeof isTyping !== 'boolean'
+        ) {
+          return
+        }
+
+        const room = conversationId.toString()
+
+        // User must have joined this conversation
+        if (!socket.rooms.has(room)) {
+          return
+        }
+
+        io.to(room).except(socket.id).emit('user_typing', {
+          conversationId: room,
+          role: socket.user.isAdmin ? 'admin' : 'customer',
+          isTyping
+        })
+      } catch (error) {
+        console.log('Typing event error:', error.message)
       }
     })
 
@@ -76,7 +134,11 @@ const initializeSocket = (httpServer) => {
       try {
         const { conversationId, message } = data || {}
 
-        if (!conversationId || typeof message !== 'string' || !message.trim()) {
+        if (
+          !conversationId ||
+          typeof message !== 'string' ||
+          !message.trim()
+        ) {
           socket.emit('chat_error', 'Valid message is required')
           return
         }
@@ -98,7 +160,9 @@ const initializeSocket = (httpServer) => {
           return
         }
 
-        if (!socket.rooms.has(conversationId.toString())) {
+        const room = conversationId.toString()
+
+        if (!socket.rooms.has(room)) {
           socket.emit('chat_error', 'Join the conversation first')
           return
         }
@@ -122,15 +186,57 @@ const initializeSocket = (httpServer) => {
         const populatedMessage = await Message.findById(newMessage._id)
           .populate('sender', 'name email')
 
-        io.to(conversationId.toString()).emit('new_message', populatedMessage)
+        // Stop typing indicator after sending
+        io.to(room).emit('user_typing', {
+          conversationId: room,
+          role: isAdmin ? 'admin' : 'customer',
+          isTyping: false
+        })
+
+        // Send message to all participants
+        io.to(room).emit('new_message', populatedMessage)
       } catch (error) {
         console.log('Socket message error:', error.message)
         socket.emit('chat_error', 'Message could not be sent')
       }
     })
 
-    socket.on('disconnect', () => {
+    // Disconnect
+    socket.on('disconnecting', () => {
+      // Stop typing indicator in every joined conversation
+      for (const room of socket.rooms) {
+        if (room === socket.id) continue
+
+        socket.to(room).emit('user_typing', {
+          conversationId: room,
+          role: socket.user.isAdmin ? 'admin' : 'customer',
+          isTyping: false
+        })
+      }
+    })
+
+    socket.on('disconnect', async () => {
       console.log('User disconnected:', socket.user._id)
+
+      try {
+        // Check rooms this socket was connected to.
+        // Socket.IO removes room membership after disconnect.
+        const joinedRooms = [...socket.rooms]
+
+        for (const room of joinedRooms) {
+          if (room === socket.id) continue
+
+          const customerOnline = await isCustomerOnline(room)
+
+          io.to(room).emit('participant_status', {
+            conversationId: room,
+            role: 'customer',
+            online: customerOnline
+          })
+        }
+      } catch (error) {
+        console.log('Presence update error:', error.message)
+      }
     })
   })
 

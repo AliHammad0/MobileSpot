@@ -392,6 +392,8 @@ const ChatInbox = () => {
   const [messagesLoading, setMessagesLoading] = useState(false)
   const [sending, setSending] = useState(false)
   const [connected, setConnected] = useState(false)
+  const [customerOnline, setCustomerOnline] = useState(false)
+  const [customerTyping, setCustomerTyping] = useState(false)
   const [error, setError] = useState('')
   const [showIntro, setShowIntro] = useState(true)
 
@@ -399,6 +401,8 @@ const ChatInbox = () => {
   const selectedRef = useRef(null)
   const joinedRef = useRef(false)
   const bottomRef = useRef(null)
+  const typingTimerRef = useRef(null)
+  const typingActiveRef = useRef(false)
 
   // Show intro animation every time page opens
   useEffect(() => {
@@ -480,7 +484,7 @@ const ChatInbox = () => {
     }
   }, [selectedConversation?._id])
 
-  // Socket connection and real-time messages
+  // Socket connection and real-time events
   useEffect(() => {
     let socket
 
@@ -502,6 +506,8 @@ const ChatInbox = () => {
       socket.on('disconnect', () => {
         setConnected(false)
         joinedRef.current = false
+        setCustomerOnline(false)
+        setCustomerTyping(false)
       })
 
       socket.on('joined_conversation', (data) => {
@@ -512,6 +518,31 @@ const ChatInbox = () => {
         }
       })
 
+      // Customer online/offline status
+      socket.on('participant_status', (data) => {
+        if (
+          data.conversationId !== selectedRef.current?._id ||
+          data.role !== 'customer'
+        ) {
+          return
+        }
+
+        setCustomerOnline(Boolean(data.online))
+      })
+
+      // Customer typing indicator
+      socket.on('user_typing', (data) => {
+        if (
+          data.conversationId !== selectedRef.current?._id ||
+          data.role !== 'customer'
+        ) {
+          return
+        }
+
+        setCustomerTyping(Boolean(data.isTyping))
+      })
+
+      // Receive real-time messages
       socket.on('new_message', (newMessage) => {
         const conversationId =
           typeof newMessage.conversation === 'object'
@@ -532,6 +563,7 @@ const ChatInbox = () => {
           })
 
           setSending(false)
+          setCustomerTyping(false)
         }
 
         // Update conversation preview
@@ -578,32 +610,100 @@ const ChatInbox = () => {
   useEffect(() => {
     const socket = socketRef.current
 
+    setCustomerTyping(false)
+    setCustomerOnline(false)
+    joinedRef.current = false
+
     if (!socket?.connected || !selectedConversation?._id) {
-      joinedRef.current = false
       return
     }
-
-    joinedRef.current = false
 
     socket.emit('join_conversation', selectedConversation._id)
 
     return () => {
       joinedRef.current = false
     }
-  }, [selectedConversation?._id])
+  }, [selectedConversation?._id, connected])
+
+  // Stop admin typing
+  const stopTyping = useCallback(() => {
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current)
+      typingTimerRef.current = null
+    }
+
+    if (
+      typingActiveRef.current &&
+      socketRef.current?.connected &&
+      selectedRef.current?._id
+    ) {
+      socketRef.current.emit('typing', {
+        conversationId: selectedRef.current._id,
+        isTyping: false
+      })
+    }
+
+    typingActiveRef.current = false
+  }, [])
+
+  // Admin typing event
+  const handleTyping = (value) => {
+    setMessage(value)
+
+    if (
+      !socketRef.current?.connected ||
+      !joinedRef.current ||
+      selectedConversation?.status !== 'open'
+    ) {
+      return
+    }
+
+    if (value.trim()) {
+      if (!typingActiveRef.current) {
+        typingActiveRef.current = true
+
+        socketRef.current.emit('typing', {
+          conversationId: selectedConversation._id,
+          isTyping: true
+        })
+      }
+
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+      }
+
+      typingTimerRef.current = setTimeout(() => {
+        stopTyping()
+      }, 1500)
+    } else {
+      stopTyping()
+    }
+  }
+
+  // Clear typing timer when component unmounts
+  useEffect(() => {
+    return () => {
+      if (typingTimerRef.current) {
+        clearTimeout(typingTimerRef.current)
+      }
+    }
+  }, [])
 
   // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: 'smooth'
     })
-  }, [messages])
+  }, [messages, customerTyping])
 
   // Select conversation
   const handleSelectConversation = (conversation) => {
+    stopTyping()
     setError('')
     setSending(false)
     setMessage('')
+    setCustomerTyping(false)
+    setCustomerOnline(false)
     setSelectedConversation(conversation)
   }
 
@@ -625,6 +725,7 @@ const ChatInbox = () => {
       return
     }
 
+    stopTyping()
     setError('')
     setSending(true)
 
@@ -661,362 +762,397 @@ const ChatInbox = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] p-3 font-[Arial,sans-serif] sm:p-6">
 
+    <div className="min-h-screen bg-[#f7f6f3] p-3 font-[Arial,sans-serif] sm:p-6">
       {showIntro && <ChatIntroAnimation />}
 
-      <div className="mx-auto max-w-7xl">
-
-        {/* Page Heading */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-
-          <div>
-            <h1 className="text-2xl font-bold text-[#171717] sm:text-3xl">
-              Customer Chats
-            </h1>
-
-            <p className="mt-2 text-sm text-gray-500">
-              Manage customer support conversations.
-            </p>
-          </div>
-
-          <button
-            onClick={loadConversations}
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-amber-500 hover:text-amber-700"
-          >
-            <FiRefreshCw size={16} />
-            Refresh
-          </button>
-
+      {/* Page Header */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-[3px] text-amber-700">
+            Admin Dashboard
+          </p>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            Customer Chats
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Manage customer conversations and provide support.
+          </p>
         </div>
 
-        {/* Chat Statistics */}
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={loadConversations}
+          disabled={loading}
+          className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <span className={loading ? 'animate-spin' : ''}>⟳</span>
+          Refresh
+        </button>
+      </div>
 
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                Total Conversations
-              </p>
-
-              <FiMessageCircle size={21} className="text-amber-600" />
-            </div>
-
-            <h2 className="mt-3 text-2xl font-bold text-gray-900">
-              {conversations.length}
-            </h2>
-          </div>
-
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                Open Conversations
-              </p>
-
-              <FiHeadphones size={21} className="text-green-600" />
-            </div>
-
-            <h2 className="mt-3 text-2xl font-bold text-gray-900">
-              {conversations.filter(
-                (item) => item.status === 'open'
-              ).length}
-            </h2>
-          </div>
-
-          <div className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-500">
-                Closed Conversations
-              </p>
-
-              <FiMessageCircle size={21} className="text-gray-500" />
-            </div>
-
-            <h2 className="mt-3 text-2xl font-bold text-gray-900">
-              {conversations.filter(
-                (item) => item.status === 'closed'
-              ).length}
-            </h2>
-          </div>
-
+      {/* Statistics */}
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Total Conversations
+          </p>
+          <h2 className="mt-2 text-3xl font-bold text-gray-900">
+            {conversations.length}
+          </h2>
         </div>
 
-        {/* Main Chat Layout */}
-        <div className="grid min-h-[650px] grid-cols-1 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-[350px_1fr]">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Open Conversations
+          </p>
+          <h2 className="mt-2 text-3xl font-bold text-green-600">
+            {conversations.filter((item) => item.status === 'open').length}
+          </h2>
+        </div>
 
-          {/* Conversation List */}
-          <div className="flex flex-col border-b border-gray-200 lg:border-b-0 lg:border-r">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Closed Conversations
+          </p>
+          <h2 className="mt-2 text-3xl font-bold text-gray-500">
+            {conversations.filter((item) => item.status === 'closed').length}
+          </h2>
+        </div>
 
-            <div className="border-b border-gray-100 px-5 py-5">
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-sm font-medium text-gray-500">
+            Socket Connection
+          </p>
+          <div className="mt-3 flex items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                connected ? 'bg-green-500' : 'bg-red-500'
+              }`}
+            />
+            <span
+              className={`text-lg font-bold ${
+                connected ? 'text-green-600' : 'text-red-500'
+              }`}
+            >
+              {connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Chat Layout */}
+      <div className="grid min-h-[650px] grid-cols-1 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm lg:grid-cols-[340px_minmax(0,1fr)]">
+
+        {/* Conversation Sidebar */}
+        <aside className="flex min-h-[350px] flex-col border-b border-gray-200 bg-white lg:border-b-0 lg:border-r">
+          <div className="border-b border-gray-100 px-5 py-4">
+            <div className="flex items-center justify-between">
               <h2 className="font-bold text-gray-900">
                 Conversations
               </h2>
-
-              <p className="mt-1 text-xs text-gray-500">
-                {conversations.length} customer chats
-              </p>
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                {conversations.length}
+              </span>
             </div>
-
-            <div className="flex-1 overflow-y-auto">
-
-              {loading ? (
-                <div className="p-6 text-center text-sm text-gray-500">
-                  Loading conversations...
-                </div>
-              ) : conversations.length === 0 ? (
-                <div className="px-5 py-12 text-center">
-                  <FiMessageCircle
-                    size={35}
-                    className="mx-auto text-gray-300"
-                  />
-
-                  <p className="mt-3 text-sm font-semibold text-gray-600">
-                    No conversations yet
-                  </p>
-
-                  <p className="mt-1 text-xs text-gray-400">
-                    Customer messages will appear here.
-                  </p>
-                </div>
-              ) : (
-                conversations.map((conversation) => {
-                  const isSelected =
-                    selectedConversation?._id === conversation._id
-
-                  return (
-                    <button
-                      key={conversation._id}
-                      onClick={() => handleSelectConversation(conversation)}
-                      className={`w-full border-b border-gray-100 p-4 text-left transition ${
-                        isSelected
-                          ? 'bg-amber-50'
-                          : 'bg-white hover:bg-gray-50'
-                      }`}
-                    >
-
-                      <div className="flex items-start gap-3">
-
-                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#171717] text-amber-400">
-                          <FiUser size={20} />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-
-                          <div className="flex items-center justify-between gap-2">
-                            <h3 className="truncate text-sm font-bold text-gray-900">
-                              {getCustomerName(conversation)}
-                            </h3>
-
-                            <span className="shrink-0 text-[10px] text-gray-400">
-                              {formatDate(conversation.lastMessageAt)}
-                            </span>
-                          </div>
-
-                          <p className="mt-1 truncate text-xs text-gray-500">
-                            {conversation.lastMessage || 'No messages yet'}
-                          </p>
-
-                          <div className="mt-2 flex items-center justify-between">
-
-                            <span className="rounded-full bg-gray-100 px-2 py-1 text-[10px] capitalize text-gray-600">
-                              {conversation.chatType}
-                            </span>
-
-                            <span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
-                              conversation.status === 'open'
-                                ? 'bg-green-50 text-green-700'
-                                : 'bg-gray-100 text-gray-500'
-                            }`}>
-                              {conversation.status}
-                            </span>
-
-                          </div>
-
-                        </div>
-                      </div>
-                    </button>
-                  )
-                })
-              )}
-
-            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Select a customer to open chat
+            </p>
           </div>
 
-          {/* Chat Window */}
-          <div className="flex min-h-[550px] flex-col bg-[#fafafa]">
-
-            {!selectedConversation ? (
-              <div className="flex flex-1 flex-col items-center justify-center px-5 text-center">
-
-                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-                  <FiMessageCircle size={36} />
-                </div>
-
-                <h2 className="mt-5 text-lg font-bold text-gray-800">
-                  Select a Conversation
-                </h2>
-
-                <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
-                  Choose a customer from the conversations list to view messages and reply.
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="flex h-48 items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-amber-600" />
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="px-5 py-16 text-center">
+                <div className="mb-3 text-4xl">💬</div>
+                <p className="font-semibold text-gray-700">
+                  No conversations yet
                 </p>
-
+                <p className="mt-1 text-xs text-gray-500">
+                  Customer messages will appear here.
+                </p>
               </div>
             ) : (
-              <>
-                {/* Chat Header */}
-                <div className="flex items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
+              conversations.map((conversation) => {
+                const isSelected =
+                  selectedConversation?._id === conversation._id
 
-                  <div className="flex min-w-0 items-center gap-3">
+                return (
+                  <button
+                    key={conversation._id}
+                    type="button"
+                    onClick={() =>
+                      handleSelectConversation(conversation)
+                    }
+                    className={`w-full border-b border-gray-100 p-4 text-left transition ${
+                      isSelected
+                        ? 'border-l-4 border-l-amber-600 bg-amber-50'
+                        : 'border-l-4 border-l-transparent hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f1e7d5] text-sm font-bold text-amber-900">
+                          {getCustomerName(conversation)
+                            .charAt(0)
+                            .toUpperCase()}
+                        </div>
 
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#171717] text-amber-400">
-                      <FiUser size={20} />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-bold text-gray-900">
+                            {getCustomerName(conversation)}
+                          </p>
+                          <p className="mt-1 truncate text-xs text-gray-500">
+                            {conversation.customer?.email || 'Customer'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                          conversation.status === 'open'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
+                        {conversation.status || 'open'}
+                      </span>
                     </div>
 
-                    <div className="min-w-0">
-                      <h2 className="truncate text-sm font-bold text-gray-900">
-                        {getCustomerName(selectedConversation)}
-                      </h2>
-
-                      <p className="mt-1 truncate text-xs text-gray-500">
-                        {selectedConversation.customer?.email || 'Customer Support'}
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <p className="truncate text-xs text-gray-500">
+                        {conversation.lastMessage || 'No messages yet'}
                       </p>
+                      <span className="shrink-0 text-[10px] text-gray-400">
+                        {conversation.lastMessageAt
+                          ? formatTime(conversation.lastMessageAt)
+                          : ''}
+                      </span>
                     </div>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </aside>
 
+        {/* Chat Window */}
+        <section className="flex min-h-[600px] min-w-0 flex-col bg-[#faf9f7]">
+          {!selectedConversation ? (
+            <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#f1e7d5] text-4xl">
+                💬
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">
+                Welcome to Customer Support
+              </h2>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
+                Select a conversation from the sidebar to view messages and reply to your customer.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Chat Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f1e7d5] font-bold text-amber-900">
+                    {getCustomerName(selectedConversation)
+                      .charAt(0)
+                      .toUpperCase()}
                   </div>
 
-                  <div className="flex shrink-0 items-center gap-2 text-xs">
-
-                    {connected ? (
-                      <>
-                        <FiWifi className="text-green-600" />
-                        <span className="text-green-700">Online</span>
-                      </>
-                    ) : (
-                      <>
-                        <FiWifiOff className="text-gray-400" />
-                        <span className="text-gray-500">Offline</span>
-                      </>
-                    )}
-
+                  <div className="min-w-0">
+                    <h2 className="truncate font-bold text-gray-900">
+                      {getCustomerName(selectedConversation)}
+                    </h2>
+                    <p className="truncate text-xs text-gray-500">
+                      {selectedConversation.customer?.email || 'Customer'}
+                    </p>
                   </div>
-
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 space-y-5 overflow-y-auto px-4 py-6 sm:px-6">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2 rounded-full bg-gray-50 px-3 py-2">
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        customerOnline ? 'bg-green-500' : 'bg-gray-400'
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-semibold ${
+                        customerOnline ? 'text-green-700' : 'text-gray-500'
+                      }`}
+                    >
+                      {customerOnline ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
 
-                  {messagesLoading ? (
-                    <div className="py-10 text-center text-sm text-gray-500">
-                      Loading messages...
-                    </div>
-                  ) : messages.length === 0 ? (
-                    <div className="py-12 text-center">
-                      <FiMessageCircle
-                        size={32}
-                        className="mx-auto text-gray-300"
-                      />
+                  <span
+                    className={`rounded-full px-3 py-2 text-xs font-bold uppercase ${
+                      selectedConversation.status === 'open'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {selectedConversation.status || 'open'}
+                  </span>
+                </div>
+              </div>
 
-                      <p className="mt-3 text-sm text-gray-500">
-                        No messages in this conversation yet.
-                      </p>
-                    </div>
-                  ) : (
-                    messages.map((item) => {
-                      const isAdmin = item.senderRole === 'admin'
+              {/* Messages Area */}
+              <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
+                <div className="mb-5 text-center">
+                  <span className="rounded-full bg-white px-4 py-2 text-[11px] font-medium text-gray-400 shadow-sm">
+                    Conversation started{' '}
+                    {formatDate(selectedConversation.createdAt)}
+                  </span>
+                </div>
 
-                      return (
+                {messagesLoading ? (
+                  <div className="flex h-40 items-center justify-center">
+                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-amber-600" />
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <p className="text-sm text-gray-500">
+                      No messages in this conversation yet.
+                    </p>
+                  </div>
+                ) : (
+                  messages.map((msg, index) => {
+                    const isAdminMessage =
+                      msg.sender?.isAdmin === true ||
+                      msg.senderRole === 'admin' ||
+                      msg.role === 'admin'
+
+                    return (
+                      <div
+                        key={msg._id || index}
+                        className={`flex ${
+                          isAdminMessage
+                            ? 'justify-end'
+                            : 'justify-start'
+                        }`}
+                      >
                         <div
-                          key={item._id}
-                          className={`flex ${
-                            isAdmin ? 'justify-end' : 'justify-start'
+                          className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[70%] ${
+                            isAdminMessage
+                              ? 'rounded-br-sm bg-[#262626] text-white'
+                              : 'rounded-bl-sm border border-gray-100 bg-white text-gray-800'
                           }`}
                         >
+                          <p className="whitespace-pre-wrap break-words text-sm leading-6">
+                            {msg.message || msg.content}
+                          </p>
 
-                          <div className={`max-w-[85%] rounded-2xl px-4 py-3 sm:max-w-[70%] ${
-                            isAdmin
-                              ? 'rounded-br-sm bg-[#171717] text-white'
-                              : 'rounded-bl-sm border border-gray-100 bg-white text-gray-800 shadow-sm'
-                          }`}>
-
-                            {!isAdmin && (
-                              <p className="mb-1 text-[11px] font-bold text-amber-700">
-                                {item.sender?.name || 'Customer'}
-                              </p>
+                          <div
+                            className={`mt-2 flex items-center justify-end gap-2 text-[10px] ${
+                              isAdminMessage
+                                ? 'text-gray-300'
+                                : 'text-gray-400'
+                            }`}
+                          >
+                            <span>
+                              {formatTime(msg.createdAt)}
+                            </span>
+                            {isAdminMessage && (
+                              <span aria-label="Sent">✓</span>
                             )}
-
-                            {isAdmin && (
-                              <p className="mb-1 text-[11px] font-bold text-amber-400">
-                                You
-                              </p>
-                            )}
-
-                            <p className="break-words text-sm leading-6">
-                              {item.message}
-                            </p>
-
-                            <p className="mt-2 text-right text-[10px] text-gray-400">
-                              {formatTime(item.createdAt)}
-                            </p>
-
                           </div>
                         </div>
-                      )
-                    })
-                  )}
+                      </div>
+                    )
+                  })
+                )}
 
-                  <div ref={bottomRef} />
-
-                </div>
-
-                {/* Error */}
-                {error && (
-                  <div className="border-t border-red-100 bg-red-50 px-5 py-2 text-xs text-red-600">
-                    {error}
+                {/* Customer Typing Indicator */}
+                {customerTyping && (
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl rounded-bl-sm border border-gray-100 bg-white px-4 py-3 shadow-sm">
+                      <p className="text-xs font-semibold text-gray-500">
+                        Customer is typing...
+                      </p>
+                      <div className="mt-2 flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 [animation-delay:-.3s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 [animation-delay:-.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500" />
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Message Input */}
-                <form
-                  onSubmit={handleSendMessage}
-                  className="flex items-center gap-3 border-t border-gray-200 bg-white p-4 sm:p-5"
-                >
+                <div ref={bottomRef} />
+              </div>
 
-                  <input
-                    type="text"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder={
-                      selectedConversation.status === 'open'
-                        ? 'Write a reply...'
-                        : 'This conversation is closed'
-                    }
-                    disabled={
-                      selectedConversation.status !== 'open' || sending
-                    }
-                    className="h-12 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm outline-none transition focus:border-amber-500 focus:bg-white disabled:opacity-50"
-                  />
+              {/* Error Message */}
+              {error && (
+                <div className="mx-4 mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 sm:mx-6">
+                  {error}
+                </div>
+              )}
 
-                  <button
-                    type="submit"
-                    disabled={
-                      !message.trim() ||
-                      sending ||
-                      !connected ||
-                      selectedConversation.status !== 'open'
-                    }
-                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#171717] text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Send reply"
+              {/* Message Input */}
+              <div className="border-t border-gray-200 bg-white p-4 sm:p-5">
+                {selectedConversation.status !== 'open' ? (
+                  <div className="rounded-xl bg-gray-100 px-4 py-4 text-center">
+                    <p className="text-sm font-semibold text-gray-500">
+                      This conversation is closed.
+                    </p>
+                  </div>
+                ) : (
+                  <form
+                    onSubmit={handleSendMessage}
+                    className="flex items-end gap-3"
                   >
-                    <FiSend size={19} />
-                  </button>
+                    <div className="min-w-0 flex-1">
+                      <textarea
+                        value={message}
+                        onChange={(e) => handleTyping(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (
+                            e.key === 'Enter' &&
+                            !e.shiftKey
+                          ) {
+                            e.preventDefault()
+                            handleSendMessage(e)
+                          }
+                        }}
+                        placeholder="Type your message..."
+                        rows={2}
+                        disabled={sending}
+                        className="max-h-32 min-h-[52px] w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                      <p className="mt-2 text-[10px] text-gray-400">
+                        Press Enter to send · Shift + Enter for a new line
+                      </p>
+                    </div>
 
-                </form>
-              </>
-            )}
-
-          </div>
-
-        </div>
+                    <button
+                      type="submit"
+                      disabled={!message.trim() || sending}
+                      className="flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#262626] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {sending ? (
+                        <>
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                          Sending
+                        </>
+                      ) : (
+                        <>
+                          Send
+                          <span>➤</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            </>
+          )}
+        </section>
       </div>
     </div>
   )
