@@ -1815,11 +1815,24 @@ const Product = () => {
                 {filteredProducts.map((product) => (
                   <article
                     key={product._id}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-[#ebe9e4] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+                    role="link"
+                    tabIndex={0}
+                    aria-label={`Open details for ${product.name}`}
+                    onClick={() => openProduct(product._id)}
+                    onKeyDown={(e) => {
+                      if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault()
+                        openProduct(product._id)
+                      }
+                    }}
+                    className="group flex cursor-pointer flex-col overflow-hidden rounded-2xl border border-[#ebe9e4] bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2"
                   >                    {/* Product Image */}
                     <button
                       type="button"
-                      onClick={() => openProduct(product._id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openProduct(product._id)
+                      }}
                       aria-label={`View ${product.name}`}
                       className="relative flex h-44 w-full shrink-0 items-center justify-center overflow-hidden bg-[#f5f4f0] sm:h-52"
                     >
@@ -1948,7 +1961,10 @@ const Product = () => {
                       {/* Product title */}
                       <button
                         type="button"
-                        onClick={() => openProduct(product._id)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openProduct(product._id)
+                        }}
                         className="line-clamp-2 h-10 w-full text-left text-sm font-bold text-gray-900 transition hover:text-gray-500 sm:text-base"
                       >
                         {product.name}
@@ -1996,7 +2012,10 @@ const Product = () => {
                       {/* View Details / Sold Out */}
                       <button
                         type="button"
-                        onClick={() => handleViewDetails(product)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleViewDetails(product)
+                        }}
                         disabled={!product.inStock || showShowroom}
                         className={`mt-auto w-full rounded-xl py-3 text-xs font-bold transition sm:text-sm ${
                           product.inStock
