@@ -7,7 +7,8 @@ import {
   FiAlertCircle,
   FiSmartphone,
   FiTag,
-  FiBox
+  FiBox,
+  FiTrash2
 } from 'react-icons/fi'
 
 const API_URL = 'https://mobilespot-backend.vercel.app/api/v1/products'
@@ -27,6 +28,7 @@ const AllProducts = () => {
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
   const [selectedBrand, setSelectedBrand] = useState('all')
+  const [deletingId, setDeletingId] = useState(null)
 
   const fetchProducts = async () => {
     try {
@@ -55,6 +57,46 @@ const AllProducts = () => {
   useEffect(() => {
     fetchProducts()
   }, [])
+
+  const handleDelete = async (product) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete "${product.name || 'this product'}"?`
+    )
+
+    if (!confirmed) return
+
+    try {
+      setDeletingId(product._id)
+
+      const token = localStorage.getItem('token')
+
+      const response = await fetch(`${API_URL}/${product._id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && {
+            Authorization: `Bearer ${token}`
+          })
+        }
+      })
+
+      const data = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Product delete nahi ho saka.')
+      }
+
+      setProducts((previousProducts) =>
+        previousProducts.filter((item) => item._id !== product._id)
+      )
+
+      alert('Product deleted successfully.')
+    } catch (err) {
+      alert(err.message || 'Product delete karne mein problem hui.')
+    } finally {
+      setDeletingId(null)
+    }
+  }
 
   const brands = useMemo(() => {
     return [...new Set(
@@ -109,7 +151,7 @@ const AllProducts = () => {
         <button
           type="button"
           onClick={fetchProducts}
-          disabled={loading}
+          disabled={loading || deletingId !== null}
           className="inline-flex items-center justify-center gap-2 bg-black text-white px-5 py-3 rounded-xl text-sm font-semibold hover:bg-gray-800 transition disabled:opacity-50"
         >
           <FiRefreshCw className={loading ? 'animate-spin' : ''} />
@@ -262,12 +304,14 @@ const AllProducts = () => {
                       <th className="px-6 py-4 text-xs uppercase tracking-wider text-gray-500">Price</th>
                       <th className="px-6 py-4 text-xs uppercase tracking-wider text-gray-500">Stock</th>
                       <th className="px-6 py-4 text-xs uppercase tracking-wider text-gray-500">Category</th>
+                      <th className="px-6 py-4 text-xs uppercase tracking-wider text-gray-500 text-center">Action</th>
                     </tr>
                   </thead>
 
                   <tbody className="divide-y divide-gray-100">
                     {filteredProducts.map((product) => {
                       const image = getImage(product)
+                      const isDeleting = deletingId === product._id
 
                       return (
                         <tr key={product._id} className="hover:bg-gray-50 transition">
@@ -320,6 +364,18 @@ const AllProducts = () => {
                           <td className="px-6 py-4 text-sm text-gray-600">
                             {product.category || 'N/A'}
                           </td>
+
+                          <td className="px-6 py-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(product)}
+                              disabled={deletingId !== null}
+                              className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition disabled:opacity-50"
+                            >
+                              <FiTrash2 size={15} />
+                              {isDeleting ? 'Deleting...' : 'Delete'}
+                            </button>
+                          </td>
                         </tr>
                       )
                     })}
@@ -331,6 +387,7 @@ const AllProducts = () => {
               <div className="md:hidden divide-y divide-gray-100">
                 {filteredProducts.map((product) => {
                   const image = getImage(product)
+                  const isDeleting = deletingId === product._id
 
                   return (
                     <div key={product._id} className="p-4 flex gap-4">
@@ -368,6 +425,16 @@ const AllProducts = () => {
                             ? `${product.stock} In Stock`
                             : 'Out of Stock'}
                         </span>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(product)}
+                          disabled={deletingId !== null}
+                          className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition disabled:opacity-50"
+                        >
+                          <FiTrash2 size={14} />
+                          {isDeleting ? 'Deleting...' : 'Delete Product'}
+                        </button>
                       </div>
                     </div>
                   )

@@ -251,7 +251,7 @@ const ProductDetails = () => {
     window.setTimeout(() => {
       setAddedToCart(false)
       setFlyToCart(false)
-    }, 900)
+    }, 3000)
   }
 
   // Add Current Mobile To Compare
