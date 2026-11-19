@@ -1,4 +1,3 @@
-
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -60,13 +59,11 @@ const Product = () => {
   const phaseTimers = useRef([])
   const navigationStarted = useRef(false)
 
-  // Product image/title par direct details page open hoga.
   const openProduct = (productId) => {
     if (!productId) return
     navigate(`/product/${productId}`)
   }
 
-  // View Details button showroom animation start karega.
   const handleViewDetails = (product) => {
     if (
       !product?._id ||
@@ -111,7 +108,6 @@ const Product = () => {
     }
   }, [])
 
-  // Database se products fetch.
   const fetchProducts = async () => {
     try {
       setLoading(true)
@@ -148,7 +144,6 @@ const Product = () => {
     fetchProducts()
   }, [])
 
-  // Showroom shelves: selected phone first.
   const shelfProducts = useMemo(() => {
     if (!selectedProduct) return []
 
@@ -180,7 +175,6 @@ const Product = () => {
     )].sort()
   }, [products])
 
-  // Search, filters aur sorting.
   const filteredProducts = useMemo(() => {
     const result = products.filter((product) => {
       const searchText = `${product.brand || ''} ${product.name || ''}`
@@ -304,26 +298,55 @@ const Product = () => {
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* Out of stock person animation */
-        @keyframes soldOutPersonEnter {
-          0% { opacity: 0; transform: translateY(18px) scale(.88); }
-          70% { opacity: 1; transform: translateY(-3px) scale(1.02); }
-          100% { opacity: 1; transform: translateY(0) scale(1); }
+        /* SOLD OUT: person walks in carrying a large product board */
+        @keyframes soldOutWalkIn {
+          0% {
+            opacity: 0;
+            transform: translateX(-125px) translateY(8px);
+          }
+          55% {
+            opacity: 1;
+            transform: translateX(10px) translateY(-2px);
+          }
+          78% {
+            transform: translateX(-5px) translateY(0);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) translateY(0);
+          }
         }
 
-        @keyframes soldOutTalk {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-4px) scale(1.04); }
+        @keyframes soldOutLegLeft {
+          0%, 100% { transform: rotate(12deg); }
+          50% { transform: rotate(-16deg); }
         }
 
-        @keyframes soldOutPhone {
-          0%, 100% { transform: rotate(-5deg) translateY(0); }
-          50% { transform: rotate(5deg) translateY(-4px); }
+        @keyframes soldOutLegRight {
+          0%, 100% { transform: rotate(-12deg); }
+          50% { transform: rotate(16deg); }
         }
 
-        @keyframes soldOutHand {
+        @keyframes soldOutBoardIn {
+          0% { opacity: 0; transform: translateX(-25px) scale(.82) rotate(-5deg); }
+          65% { opacity: 1; transform: translateX(3px) scale(1.03) rotate(2deg); }
+          100% { opacity: 1; transform: translateX(0) scale(1) rotate(0); }
+        }
+
+        @keyframes soldOutBoardFloat {
+          0%, 100% { transform: translateY(0) rotate(0); }
+          50% { transform: translateY(-3px) rotate(.5deg); }
+        }
+
+        @keyframes soldOutStamp {
+          0% { opacity: 0; transform: scale(1.5) rotate(-12deg); }
+          70% { opacity: 1; transform: scale(.92) rotate(-8deg); }
+          100% { opacity: 1; transform: scale(1) rotate(-8deg); }
+        }
+
+        @keyframes soldOutArmMove {
           0%, 100% { transform: rotate(-7deg); }
-          50% { transform: rotate(5deg); }
+          50% { transform: rotate(3deg); }
         }
 
         .showroom-screen {
@@ -423,9 +446,7 @@ const Product = () => {
 
         .showroom-bubble {
           animation: bubbleIn .4s ease both;
-        }
-
-        .shop-person {
+        }        .shop-person {
           position: relative;
           width: 125px;
           height: 225px;
@@ -567,64 +588,48 @@ const Product = () => {
           mix-blend-mode: multiply;
         }
 
-        /* SOLD OUT visual person */
+        /* SOLD OUT SCENE */
         .soldout-scene {
           position: absolute;
           inset: 0;
           z-index: 5;
           display: flex;
-          align-items: flex-end;
+          align-items: center;
           justify-content: center;
           overflow: hidden;
-          background: linear-gradient(145deg, #eeeae1, #d9d2c5);
+          background:
+            radial-gradient(circle at 75% 30%, rgba(255,255,255,.9), transparent 45%),
+            linear-gradient(145deg, #eeeae1, #d5ccbd);
         }
 
+        .soldout-floor {
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          left: 0;
+          height: 13%;
+          border-top: 2px solid rgba(132,112,83,.22);
+          background: linear-gradient(#d4c8b5, #c8baa4);
+        }
+
+        /* Person enters from left */
         .soldout-person {
-          position: relative;
-          width: 142px;
-          height: 170px;
-          animation: soldOutPersonEnter .8s ease both;
-        }
-
-        .soldout-speech {
           position: absolute;
-          top: 10px;
-          left: 50%;
-          z-index: 12;
-          padding: 7px 13px;
-          border: 1px solid #e5d5c1;
-          border-radius: 12px;
-          background: white;
-          color: #b42318;
-          font-size: 12px;
-          font-weight: 900;
-          letter-spacing: 1.5px;
-          white-space: nowrap;
-          box-shadow: 0 4px 12px rgba(0,0,0,.12);
-          transform: translateX(-50%);
-          animation: soldOutTalk 1.8s ease-in-out infinite;
-        }
-
-        .soldout-speech::after {
-          content: "";
-          position: absolute;
-          left: 50%;
-          bottom: -6px;
-          width: 10px;
-          height: 10px;
-          border-right: 1px solid #e5d5c1;
-          border-bottom: 1px solid #e5d5c1;
-          background: white;
-          transform: translateX(-50%) rotate(45deg);
+          left: 3%;
+          bottom: 5%;
+          z-index: 8;
+          width: 36%;
+          height: 88%;
+          animation: soldOutWalkIn 1.45s cubic-bezier(.2,.75,.25,1) both;
         }
 
         .soldout-head {
           position: absolute;
-          top: 39px;
-          left: 43px;
-          z-index: 4;
-          width: 43px;
-          height: 43px;
+          top: 7%;
+          left: 25%;
+          z-index: 5;
+          width: 34%;
+          aspect-ratio: 1;
           border: 2px solid #a56f4e;
           border-radius: 50%;
           background: #c98c64;
@@ -632,91 +637,211 @@ const Product = () => {
 
         .soldout-hair {
           position: absolute;
-          top: 33px;
-          left: 40px;
-          z-index: 5;
-          width: 49px;
-          height: 22px;
-          border-radius: 24px 24px 5px 5px;
+          top: 4%;
+          left: 23%;
+          z-index: 6;
+          width: 38%;
+          height: 13%;
+          border-radius: 25px 25px 5px 5px;
           background: #252323;
+        }
+
+        .soldout-eyes {
+          position: absolute;
+          top: 17%;
+          left: 34%;
+          z-index: 7;
+          display: flex;
+          gap: 10px;
+        }
+
+        .soldout-eyes span {
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: #171717;
         }
 
         .soldout-body {
           position: absolute;
-          top: 78px;
-          left: 26px;
-          z-index: 3;
-          width: 78px;
-          height: 78px;
+          top: 29%;
+          left: 12%;
+          z-index: 4;
+          width: 60%;
+          height: 43%;
           border: 1px solid #64766c;
-          border-radius: 17px 17px 5px 5px;
+          border-radius: 17px 17px 7px 7px;
           background: linear-gradient(120deg, #263e35, #587565);
+        }
+
+        .soldout-shirt-line {
+          position: absolute;
+          top: 30%;
+          left: 40%;
+          z-index: 5;
+          width: 12%;
+          height: 38%;
+          background: #eee9dc;
+          clip-path: polygon(0 0, 100% 0, 70% 100%, 30% 100%);
+        }
+
+        .soldout-arm {
+          position: absolute;
+          top: 39%;
+          left: 53%;
+          z-index: 10;
+          width: 49%;
+          height: 8%;
+          border: 1px solid #a56f4e;
+          border-radius: 20px;
+          background: #c98c64;
+          transform-origin: 5px 50%;
+          animation: soldOutArmMove 2s ease-in-out 1.4s infinite;
+        }
+
+        .soldout-hand {
+          position: absolute;
+          top: 36%;
+          left: 94%;
+          z-index: 12;
+          width: 13%;
+          height: 12%;
+          border-radius: 50%;
+          background: #c98c64;
         }
 
         .soldout-leg {
           position: absolute;
-          top: 145px;
-          z-index: 2;
-          width: 22px;
-          height: 25px;
-          border-radius: 6px 6px 3px 3px;
-          background: #242424;
+          top: 68%;
+          z-index: 3;
+          width: 19%;
+          height: 29%;
+          border-radius: 7px 7px 4px 4px;
+          background: linear-gradient(90deg, #222, #393939);
+          transform-origin: top center;
         }
 
-        .soldout-leg.left { left: 40px; }
-        .soldout-leg.right { left: 70px; }
-
-        .soldout-arm {
-          position: absolute;
-          top: 91px;
-          left: 84px;
-          z-index: 7;
-          width: 48px;
-          height: 13px;
-          border-radius: 15px;
-          background: #c98c64;
-          transform-origin: 7px 7px;
-          animation: soldOutHand 1.8s ease-in-out infinite;
+        .soldout-leg.left {
+          left: 23%;
+          animation: soldOutLegLeft .35s ease-in-out 0s 3;
         }
 
-        .soldout-phone {
+        .soldout-leg.right {
+          left: 48%;
+          animation: soldOutLegRight .35s ease-in-out .15s 3;
+        }
+
+        .soldout-shoe {
           position: absolute;
-          top: 68px;
-          left: 111px;
-          z-index: 9;
+          bottom: 0;
+          left: -15%;
+          width: 135%;
+          height: 13%;
+          border-radius: 8px 14px 5px 5px;
+          background: #171717;
+        }
+
+        /* Big board in the person's hands */
+        .soldout-board {
+          position: absolute;
+          top: 9%;
+          right: 5%;
+          z-index: 6;
           display: flex;
-          width: 27px;
-          height: 48px;
+          width: 66%;
+          height: 80%;
+          flex-direction: column;
+          overflow: hidden;
+          padding: 7px;
+          border: 5px solid #795c3c;
+          border-radius: 9px;
+          background: #fffefa;
+          box-shadow: 0 8px 22px rgba(0,0,0,.24),
+            inset 0 0 0 2px #e6d9c4;
+          animation: soldOutBoardIn 1.1s ease .25s both,
+            soldOutBoardFloat 2.8s ease-in-out 1.5s infinite;
+        }
+
+        .soldout-board-heading {
+          flex: 0 0 auto;
+          margin-bottom: 5px;
+          text-align: center;
+          color: #6d5537;
+          font-size: clamp(7px, 2vw, 11px);
+          font-weight: 900;
+          letter-spacing: 2px;
+        }
+
+        .soldout-board-image-wrap {
+          position: relative;
+          display: flex;
+          min-height: 0;
+          flex: 1;
           align-items: center;
           justify-content: center;
           overflow: hidden;
-          border: 2px solid #252525;
+          border: 1px solid #e5dfd4;
           border-radius: 5px;
-          background: #fff;
-          box-shadow: 2px 4px 7px rgba(0,0,0,.22);
-          animation: soldOutPhone 1.8s ease-in-out infinite;
+          background: linear-gradient(145deg, #f8f7f3, #ece8df);
         }
 
-        .soldout-phone img {
+        .soldout-board-image {
+          display: block;
           width: 100%;
           height: 100%;
+          padding: 5px;
           object-fit: contain;
+          mix-blend-mode: multiply;
         }
 
-        .soldout-phone-fallback {
-          color: #777;
-          font-size: 18px;
+        .soldout-board-fallback {
+          display: flex;
+          height: 100%;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          color: #a99b85;
+          font-size: 45px;
+        }
+
+        .soldout-stamp {
+          position: absolute;
+          right: 4%;
+          bottom: 7%;
+          z-index: 4;
+          padding: 5px 10px;
+          border: 3px solid #b42318;
+          border-radius: 4px;
+          background: rgba(255,255,255,.92);
+          color: #b42318;
+          font-size: clamp(12px, 3.3vw, 21px);
+          font-weight: 1000;
+          letter-spacing: 2px;
+          line-height: 1;
+          text-shadow: 0 1px 0 white;
+          box-shadow: 0 3px 8px rgba(0,0,0,.12);
+          animation: soldOutStamp .5s cubic-bezier(.2,.8,.2,1) 1.3s both;
+        }
+
+        .soldout-board-footer {
+          flex: 0 0 auto;
+          padding-top: 4px;
+          text-align: center;
+          color: #806b4d;
+          font-size: clamp(6px, 1.6vw, 8px);
+          font-weight: 800;
+          letter-spacing: 1.5px;
         }
 
         .soldout-caption {
           position: absolute;
           right: 5px;
-          bottom: 7px;
+          bottom: 2px;
           left: 5px;
-          z-index: 10;
+          z-index: 15;
           text-align: center;
           color: #675a47;
-          font-size: 8px;
+          font-size: 7px;
           font-weight: 800;
           letter-spacing: 2px;
         }
@@ -1051,9 +1176,7 @@ const Product = () => {
             transition-duration: .01ms !important;
           }
         }
-      `}</style>
-
-      {/* PREMIUM MOBILE SHOWROOM */}
+      `}</style>      {/* PREMIUM MOBILE SHOWROOM */}
       {showShowroom && selectedProduct && (
         <div className={`showroom-screen phase-${showroomPhase} fixed inset-0 z-[500] flex items-center justify-center overflow-hidden bg-[#e8e3d9] px-3 py-5`}>
 
@@ -1075,7 +1198,6 @@ const Product = () => {
               </p>
             </div>
 
-            {/* Dialogue */}
             <div className="showroom-dialogue mb-4 flex min-h-[68px] items-center justify-center">
               {showroomPhase === 'instruction' && (
                 <div className="showroom-bubble rounded-2xl border border-[#e2d7c5] bg-white px-5 py-3 text-center shadow-lg">
@@ -1111,10 +1233,8 @@ const Product = () => {
               )}
             </div>
 
-            {/* Store Interior */}
             <div className="showroom-store relative overflow-hidden rounded-3xl border border-white/80 bg-[#f4efe5] shadow-2xl">
 
-              {/* Back wall */}
               <div className="showroom-back-wall relative border-b-[8px] border-[#9b7950] bg-gradient-to-b from-[#ddd0b9] to-[#eee5d5] px-3 pb-5 pt-5 sm:px-6">
 
                 <div className="showroom-rack-heading mb-4 flex items-center justify-center gap-3">
@@ -1127,7 +1247,6 @@ const Product = () => {
                   <span className="h-px flex-1 bg-[#b49a73]" />
                 </div>
 
-                {/* Retail display rack */}
                 <div className="showroom-rack relative rounded-lg border-[9px] border-[#765638] bg-[#a8875d] p-2 shadow-[inset_0_0_18px_rgba(0,0,0,.3)] sm:p-4">
 
                   <div className="absolute left-2 right-2 top-0 h-1 bg-[#fff1c9] shadow-[0_0_12px_4px_rgba(255,228,165,.8)]" />
@@ -1198,7 +1317,6 @@ const Product = () => {
                 </div>
               </div>
 
-              {/* Foreground counter and staff */}
               <div className="showroom-floor relative flex min-h-[235px] items-end justify-between overflow-hidden bg-gradient-to-b from-[#e8dfd0] to-[#cbb99e] px-1 pt-4 sm:min-h-[260px] sm:px-6">
 
                 {/* Owner */}
@@ -1351,9 +1469,7 @@ const Product = () => {
             </p>
           </div>
         </div>
-      )}
-
-      <div className="mx-auto max-w-7xl">
+      )}      <div className="mx-auto max-w-7xl">
 
         {/* Page Heading */}
         <div className="mb-7 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
@@ -1651,9 +1767,7 @@ const Product = () => {
               <span className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-500">
                 {filteredProducts.length} Results
               </span>
-            </div>
-
-            {/* Products Grid */}
+            </div>            {/* Products Grid */}
             {filteredProducts.length > 0 ? (
               <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-5 lg:grid-cols-4 xl:grid-cols-5">
 
@@ -1711,48 +1825,69 @@ const Product = () => {
                           </div>
                         </>
                       ) : (
-                        /* SOLD OUT PERSON WITH ACTUAL DATABASE PHONE IMAGE */
+                        /* WALKING PERSON HOLDING LARGE SOLD OUT PRODUCT BOARD */
                         <div className="soldout-scene">
 
-                          {/* Person speech bubble */}
-                          <div className="soldout-speech">
-                            SOLD OUT!
-                          </div>
+                          <div className="soldout-floor" />
 
-                          {/* Animated person */}
-                          <div className="soldout-person">
+                          {/* Large board */}
+                          <div className="soldout-board">
 
-                            <div className="soldout-head" />
-                            <div className="soldout-hair" />
-
-                            {/* Eyes */}
-                            <div className="absolute left-[55px] top-[56px] z-[6] flex gap-3">
-                              <span className="h-1.5 w-1.5 rounded-full bg-black" />
-                              <span className="h-1.5 w-1.5 rounded-full bg-black" />
+                            <div className="soldout-board-heading">
+                              MOBILESPOT PRODUCT NOTICE
                             </div>
 
-                            {/* Shirt / body */}
-                            <div className="soldout-body" />
-
-                            {/* Arms */}
-                            <div className="soldout-arm" />
-
-                            {/* Actual product phone image in hand */}
-                            <div className="soldout-phone">
+                            {/* Actual image from this product's database record */}
+                            <div className="soldout-board-image-wrap">
                               {product.image ? (
                                 <img
                                   src={product.image}
-                                  alt={`${product.name} phone`}
+                                  alt={`${product.name} - Sold Out`}
                                   loading="lazy"
+                                  className="soldout-board-image"
                                 />
                               ) : (
-                                <FiSmartphone className="soldout-phone-fallback" />
+                                <div className="soldout-board-fallback">
+                                  <FiSmartphone />
+                                </div>
                               )}
+
+                              <div className="soldout-stamp">
+                                SOLD OUT
+                              </div>
                             </div>
 
-                            {/* Legs */}
-                            <div className="soldout-leg left" />
-                            <div className="soldout-leg right" />
+                            <div className="soldout-board-footer">
+                              {product.name}
+                            </div>
+                          </div>
+
+                          {/* Person walking in and holding the board */}
+                          <div className="soldout-person">
+
+                            <div className="soldout-hair" />
+                            <div className="soldout-head" />
+
+                            <div className="soldout-eyes">
+                              <span />
+                              <span />
+                            </div>
+
+                            <div className="soldout-body" />
+                            <div className="soldout-shirt-line" />
+
+                            {/* Arm reaches towards and holds the board */}
+                            <div className="soldout-arm" />
+                            <div className="soldout-hand" />
+
+                            {/* Walking legs */}
+                            <div className="soldout-leg left">
+                              <div className="soldout-shoe" />
+                            </div>
+
+                            <div className="soldout-leg right">
+                              <div className="soldout-shoe" />
+                            </div>
                           </div>
 
                           <div className="soldout-caption">
