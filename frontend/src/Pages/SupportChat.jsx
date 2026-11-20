@@ -227,6 +227,60 @@ const SupportIntroAnimation = () => {
           animation: supportLoader 1.6s ease-in-out infinite;
         }
 
+        /* Live Typing Indicator */
+
+        .typing-indicator {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: fit-content;
+          padding: 12px 15px;
+          border: 1px solid #eeeae2;
+          border-radius: 16px;
+          border-bottom-left-radius: 4px;
+          background: white;
+          box-shadow: 0 3px 12px #17171708;
+        }
+
+        .typing-dots {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .typing-dots span {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #c58b22;
+          animation: typingBounce .6s ease-in-out infinite alternate;
+        }
+
+        .typing-dots span:nth-child(2) {
+          animation-delay: .2s;
+        }
+
+        .typing-dots span:nth-child(3) {
+          animation-delay: .4s;
+        }
+
+        .typing-text {
+          color: #77736d;
+          font-size: 11px;
+          font-weight: 500;
+        }
+
+        @keyframes typingBounce {
+          from {
+            transform: translateY(2px);
+            opacity: .4;
+          }
+          to {
+            transform: translateY(-3px);
+            opacity: 1;
+          }
+        }
+
         @keyframes supportContentIn {
           from { opacity: 0; transform: translateY(20px) scale(.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
@@ -296,6 +350,10 @@ const SupportIntroAnimation = () => {
           .support-intro-overlay {
             animation-duration: .01ms !important;
             animation-delay: 0ms !important;
+          }
+
+          .typing-dots span {
+            animation: none;
           }
         }
       `}</style>
@@ -377,8 +435,13 @@ const SupportChat = () => {
   const [error, setError] = useState('')
   const [showIntro, setShowIntro] = useState(true)
 
+  // Other user typing state
+  const [isOtherTyping, setIsOtherTyping] = useState(false)
+
   const socketRef = useRef(null)
   const bottomRef = useRef(null)
+  const typingTimeoutRef = useRef(null)
+  const isTypingRef = useRef(false)
 
   let currentUser = null
 
@@ -442,7 +505,7 @@ const SupportChat = () => {
     }
   }, [])
 
-  // Socket connection
+  // Socket connection and typing events
   useEffect(() => {
     if (!conversation?._id) return
 
@@ -454,17 +517,20 @@ const SupportChat = () => {
 
       socket.on('connect', () => {
         setConnected(true)
+
         socket.emit('join_conversation', conversation._id)
       })
 
       socket.on('disconnect', () => {
         setConnected(false)
+        setIsOtherTyping(false)
       })
 
       socket.on('joined_conversation', () => {
         setConnected(true)
       })
 
+      // Receive new messages
       socket.on('new_message', (newMessage) => {
         if (
           newMessage.conversation !== conversation._id &&
@@ -484,6 +550,25 @@ const SupportChat = () => {
         })
 
         setSending(false)
+        setIsOtherTyping(false)
+      })
+
+      // Other user started typing
+      socket.on('user_typing', (data) => {
+        if (data.conversationId !== conversation._id) return
+
+        if (String(data.userId) === String(currentUserId)) return
+
+        setIsOtherTyping(true)
+      })
+
+      // Other user stopped typing
+      socket.on('user_stop_typing', (data) => {
+        if (data.conversationId !== conversation._id) return
+
+        if (String(data.userId) === String(currentUserId)) return
+
+        setIsOtherTyping(false)
       })
 
       socket.on('chat_error', (errorMessage) => {
@@ -500,23 +585,97 @@ const SupportChat = () => {
         setConnected(false)
         setError(err.message || 'Chat connection failed.')
       })
+
     } catch (err) {
       setError(err.message || 'Unable to connect to chat.')
     }
 
     return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+
       socket?.disconnect()
       socketRef.current = null
       setConnected(false)
+      setIsOtherTyping(false)
     }
-  }, [conversation?._id])
+  }, [conversation?._id, currentUserId])
 
   // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: 'smooth'
     })
-  }, [messages])
+  }, [messages, isOtherTyping])
+
+  // Send typing event
+  const handleTypingChange = (e) => {
+    const value = e.target.value
+
+    setMessage(value)
+
+    if (!conversation?._id || !socketRef.current?.connected) return
+
+    const trimmedValue = value.trim()
+
+    if (!trimmedValue) {
+      if (isTypingRef.current) {
+        socketRef.current.emit('stop_typing', {
+          conversationId: conversation._id,
+          userId: currentUserId
+        })
+
+        isTypingRef.current = false
+      }
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+
+      return
+    }
+
+    // Send typing event only once until timeout
+    if (!isTypingRef.current) {
+      socketRef.current.emit('typing', {
+        conversationId: conversation._id,
+        userId: currentUserId
+      })
+
+      isTypingRef.current = true
+    }
+
+    // Reset typing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      socketRef.current?.emit('stop_typing', {
+        conversationId: conversation._id,
+        userId: currentUserId
+      })
+
+      isTypingRef.current = false
+    }, 1200)
+  }
+
+  // Stop typing
+  const stopTyping = () => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current)
+    }
+
+    if (isTypingRef.current && socketRef.current?.connected) {
+      socketRef.current.emit('stop_typing', {
+        conversationId: conversation?._id,
+        userId: currentUserId
+      })
+    }
+
+    isTypingRef.current = false
+  }
 
   // Send message
   const handleSend = (e) => {
@@ -533,6 +692,9 @@ const SupportChat = () => {
 
     setError('')
     setSending(true)
+
+    // Stop typing before sending
+    stopTyping()
 
     socketRef.current.emit('send_message', {
       conversationId: conversation._id,
@@ -686,6 +848,7 @@ const SupportChat = () => {
                     )
                   })}
 
+                  {/* Empty Messages */}
                   {messages.length === 0 && (
                     <div className="py-8 text-center">
                       <FiMessageCircle
@@ -699,7 +862,27 @@ const SupportChat = () => {
                     </div>
                   )}
 
+                  {/* Live Typing Indicator */}
+                  {isOtherTyping && (
+                    <div className="flex justify-start">
+                      <div className="typing-indicator">
+
+                        <div className="typing-dots">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+
+                        <span className="typing-text">
+                          Support Team is typing...
+                        </span>
+
+                      </div>
+                    </div>
+                  )}
+
                   <div ref={bottomRef} />
+
                 </div>
               </>
             )}
@@ -722,7 +905,7 @@ const SupportChat = () => {
             <input
               type="text"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={handleTypingChange}
               placeholder="Type your message..."
               disabled={!conversation || sending}
               className="h-12 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm outline-none transition focus:border-amber-500 focus:bg-white disabled:opacity-50"
