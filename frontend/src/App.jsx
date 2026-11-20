@@ -41,6 +41,7 @@ import ChatInbox from './Admin/ChatInbox'
 import LuckySpin from './Pages/LuckySpin'
 
 import ProtectedAdminRoute from './Admin/ProtectedAdminRoute'
+import PhoneLifeSimulator from './Pages/PhoneLifeSimulator'
 
 const ScrollToTop = () => {
   const { pathname } = useLocation()
@@ -107,6 +108,7 @@ const App = () => {
           <Route path="/edit-profile" element={<EditProfile />} />
           <Route path="/lucky-spin" element={<LuckySpin />} />
           <Route path="/chat" element={<SupportChat />} />
+          <Route path="/phone" element={<PhoneLifeSimulator />} />
 
           {/* Protected Admin Routes */}
           <Route element={<ProtectedAdminRoute />}>
