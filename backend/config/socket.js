@@ -7,7 +7,7 @@ const initializeSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
       origin: process.env.CLIENT_URL
-        ? process.env.CLIENT_URL.split(',').map(url => url.trim())
+        ? process.env.CLIENT_URL.split(',')
         : '*',
       methods: ['GET', 'POST']
     },
@@ -21,37 +21,68 @@ const initializeSocket = (httpServer) => {
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id)
 
-    // Store joined conversations
-    socket.data.conversations = new Set()
-
-    // JOIN CONVERSATION
+    // Join conversation
     socket.on('join_conversation', (conversationId) => {
       if (!conversationId) return
 
       socket.join(conversationId)
 
-      socket.data.conversations.add(conversationId)
+      socket.data.conversationId = conversationId
 
       socket.emit('joined_conversation', {
         conversationId
       })
 
       console.log(
-        `Socket ${socket.id} joined conversation ${conversationId}`
+        `Socket ${socket.id} joined ${conversationId}`
       )
     })
 
-    // LEAVE CONVERSATION
+    // Leave conversation
     socket.on('leave_conversation', (conversationId) => {
       if (!conversationId) return
 
       socket.leave(conversationId)
 
-      socket.data.conversations.delete(conversationId)
+      if (socket.data.conversationId === conversationId) {
+        socket.data.conversationId = null
+      }
+    })
 
+    // Typing event
+    socket.on('typing', ({ conversationId, isTyping } = {}) => {
+      if (
+        !conversationId ||
+        socket.data.conversationId !== conversationId
+      ) {
+        return
+      }
+
+      // Role must come from authenticated server-side identity.
       const role = socket.data.user?.role
 
-      if (['admin', 'customer'].includes(role)) {
+      if (!['admin', 'customer'].includes(role)) {
+        return
+      }
+
+      socket.to(conversationId).emit('user_typing', {
+        conversationId,
+        role,
+        isTyping: Boolean(isTyping)
+      })
+    })
+
+    // Disconnect
+    socket.on('disconnect', () => {
+      console.log('Socket disconnected:', socket.id)
+
+      const conversationId = socket.data.conversationId
+      const role = socket.data.user?.role
+
+      if (
+        conversationId &&
+        ['admin', 'customer'].includes(role)
+      ) {
         socket.to(conversationId).emit('user_typing', {
           conversationId,
           role,
@@ -60,57 +91,7 @@ const initializeSocket = (httpServer) => {
       }
     })
 
-    // WHATSAPP STYLE TYPING INDICATOR
-    socket.on('typing', (data = {}) => {
-      const { conversationId, isTyping } = data
-
-      if (
-        !conversationId ||
-        !socket.data.conversations.has(conversationId)
-      ) {
-        return
-      }
-
-      // Get authenticated user role
-      const role = socket.data.user?.role
-
-      if (!['admin', 'customer'].includes(role)) {
-        return
-      }
-
-      // Send typing event to other conversation participants
-      socket.to(conversationId).emit('user_typing', {
-        conversationId,
-        role,
-        isTyping: Boolean(isTyping)
-      })
-
-      console.log(
-        `${role} typing:`,
-        conversationId,
-        Boolean(isTyping)
-      )
-    })
-
-    // DISCONNECT
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected:', socket.id)
-
-      const role = socket.data.user?.role
-
-      // Stop typing in all joined conversations
-      if (['admin', 'customer'].includes(role)) {
-        for (const conversationId of socket.data.conversations) {
-          socket.to(conversationId).emit('user_typing', {
-            conversationId,
-            role,
-            isTyping: false
-          })
-        }
-      }
-    })
-
-    // SOCKET ERROR
+    // Socket errors
     socket.on('error', (error) => {
       console.error('Socket error:', error.message)
     })
@@ -121,7 +102,6 @@ const initializeSocket = (httpServer) => {
   return io
 }
 
-// GET SOCKET INSTANCE
 export const getIO = () => {
   if (!io) {
     throw new Error('Socket.IO is not initialized')
