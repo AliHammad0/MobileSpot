@@ -1,10 +1,5 @@
 
 import { Server } from 'socket.io'
-import jwt from 'jsonwebtoken'
-import config from './config.js'
-import User from '../model/users.js'
-import Conversation from '../model/Conversation.js'
-import Message from '../model/message.js'
 
 let io
 
@@ -16,156 +11,56 @@ const initializeSocket = (httpServer) => {
         : '*',
       methods: ['GET', 'POST']
     },
+
     transports: ['websocket', 'polling'],
+
     pingTimeout: 60000,
     pingInterval: 25000
-  })
-
-  // JWT AUTHENTICATION
-  io.use(async (socket, next) => {
-    try {
-      const token = socket.handshake.auth?.token
-
-      if (!token) {
-        return next(new Error('Authentication required'))
-      }
-
-      const decoded = jwt.verify(token, config.SECRET_KEY)
-
-      const user = await User.findById(decoded.id)
-
-      if (!user || !user.isActive) {
-        return next(new Error('Invalid user'))
-      }
-
-      socket.user = user
-      socket.data.user = user
-
-      next()
-    } catch (error) {
-      next(new Error('Invalid or expired token'))
-    }
   })
 
   io.on('connection', (socket) => {
     console.log('Socket connected:', socket.id)
 
+    // Store joined conversations
     socket.data.conversations = new Set()
 
-    const role = socket.user.isAdmin ? 'admin' : 'customer'
-
     // JOIN CONVERSATION
-    socket.on('join_conversation', async (conversationId) => {
-      try {
-        if (!conversationId) return
+    socket.on('join_conversation', (conversationId) => {
+      if (!conversationId) return
 
-        const conversation = await Conversation.findById(conversationId)
+      socket.join(conversationId)
 
-        if (!conversation) {
-          return socket.emit('chat_error', {
-            message: 'Conversation not found'
-          })
-        }
+      socket.data.conversations.add(conversationId)
 
-        const isCustomer =
-          conversation.customer.toString() === socket.user._id.toString()
+      socket.emit('joined_conversation', {
+        conversationId
+      })
 
-        if (!socket.user.isAdmin && !isCustomer) {
-          return socket.emit('chat_error', {
-            message: 'Access denied'
-          })
-        }
+      console.log(
+        `Socket ${socket.id} joined conversation ${conversationId}`
+      )
+    })
 
-        socket.join(conversationId)
-        socket.data.conversations.add(conversationId)
+    // LEAVE CONVERSATION
+    socket.on('leave_conversation', (conversationId) => {
+      if (!conversationId) return
 
-        socket.emit('joined_conversation', {
-          conversationId
-        })
+      socket.leave(conversationId)
 
-        console.log('Joined conversation:', conversationId)
-      } catch (error) {
-        console.error('Join error:', error.message)
+      socket.data.conversations.delete(conversationId)
 
-        socket.emit('chat_error', {
-          message: 'Unable to join conversation'
+      const role = socket.data.user?.role
+
+      if (['admin', 'customer'].includes(role)) {
+        socket.to(conversationId).emit('user_typing', {
+          conversationId,
+          role,
+          isTyping: false
         })
       }
     })
 
-    // SEND MESSAGE
-    socket.on('send_message', async (data = {}) => {
-      try {
-        const { conversationId, message } = data
-
-        if (!conversationId || !message || typeof message !== 'string' || !message.trim()) {
-          return socket.emit('chat_error', {
-            message: 'Message cannot be empty'
-          })
-        }
-
-        if (!socket.data.conversations.has(conversationId)) {
-          return socket.emit('chat_error', {
-            message: 'Join conversation first'
-          })
-        }
-
-        const conversation = await Conversation.findById(conversationId)
-
-        if (!conversation) {
-          return socket.emit('chat_error', {
-            message: 'Conversation not found'
-          })
-        }
-
-        if (conversation.status !== 'open') {
-          return socket.emit('chat_error', {
-            message: 'This conversation is closed'
-          })
-        }
-
-        const isCustomer =
-          conversation.customer.toString() === socket.user._id.toString()
-
-        if (!socket.user.isAdmin && !isCustomer) {
-          return socket.emit('chat_error', {
-            message: 'Access denied'
-          })
-        }
-
-        const newMessage = await Message.create({
-          conversation: conversationId,
-          sender: socket.user._id,
-          senderRole: role,
-          message: message.trim()
-        })
-
-        conversation.lastMessage = message.trim()
-        conversation.lastMessageAt = new Date()
-
-        if (socket.user.isAdmin) {
-          conversation.admin = socket.user._id
-        }
-
-        await conversation.save()
-
-        const populatedMessage = await Message.findById(newMessage._id)
-          .populate('sender', 'name email')
-
-        // SEND MESSAGE TO ALL PARTICIPANTS
-        io.to(conversationId).emit('new_message', populatedMessage)
-
-        console.log('Message sent:', conversationId)
-      } catch (error) {
-        console.error('Send message error:', error.message)
-
-        socket.emit('chat_error', {
-          message: 'Unable to send message'
-        })
-      }
-    })
-
-    // TYPING INDICATOR
+    // WHATSAPP STYLE TYPING INDICATOR
     socket.on('typing', (data = {}) => {
       const { conversationId, isTyping } = data
 
@@ -176,40 +71,46 @@ const initializeSocket = (httpServer) => {
         return
       }
 
+      // Get authenticated user role
+      const role = socket.data.user?.role
+
+      if (!['admin', 'customer'].includes(role)) {
+        return
+      }
+
+      // Send typing event to other conversation participants
       socket.to(conversationId).emit('user_typing', {
         conversationId,
         role,
         isTyping: Boolean(isTyping)
       })
-    })
 
-    // LEAVE CONVERSATION
-    socket.on('leave_conversation', (conversationId) => {
-      if (!conversationId) return
-
-      socket.leave(conversationId)
-      socket.data.conversations.delete(conversationId)
-
-      socket.to(conversationId).emit('user_typing', {
+      console.log(
+        `${role} typing:`,
         conversationId,
-        role,
-        isTyping: false
-      })
+        Boolean(isTyping)
+      )
     })
 
     // DISCONNECT
     socket.on('disconnect', () => {
       console.log('Socket disconnected:', socket.id)
 
-      for (const conversationId of socket.data.conversations) {
-        socket.to(conversationId).emit('user_typing', {
-          conversationId,
-          role,
-          isTyping: false
-        })
+      const role = socket.data.user?.role
+
+      // Stop typing in all joined conversations
+      if (['admin', 'customer'].includes(role)) {
+        for (const conversationId of socket.data.conversations) {
+          socket.to(conversationId).emit('user_typing', {
+            conversationId,
+            role,
+            isTyping: false
+          })
+        }
       }
     })
 
+    // SOCKET ERROR
     socket.on('error', (error) => {
       console.error('Socket error:', error.message)
     })
@@ -220,6 +121,7 @@ const initializeSocket = (httpServer) => {
   return io
 }
 
+// GET SOCKET INSTANCE
 export const getIO = () => {
   if (!io) {
     throw new Error('Socket.IO is not initialized')
