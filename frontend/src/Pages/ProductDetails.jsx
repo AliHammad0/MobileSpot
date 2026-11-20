@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useDispatch } from 'react-redux'
 import { addToCart } from '../redux/slices/cartSlice'
@@ -45,6 +45,8 @@ const ProductDetails = () => {
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [flyToCart, setFlyToCart] = useState(false)
   const [imageZoomed, setImageZoomed] = useState(false)
+  const [is360Mode, setIs360Mode] = useState(false)
+  const dragStartX = useRef(null)
 
   const [reviews, setReviews] = useState([])
   const [reviewsLoading, setReviewsLoading] = useState(false)
@@ -217,6 +219,34 @@ const ProductDetails = () => {
   // Product Images
   const images = product?.images || []
 
+  // Interactive 360 Degree Phone View
+  const handle360PointerDown = (event) => {
+    if (!is360Mode || images.length < 2) return
+
+    dragStartX.current = event.clientX
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  const handle360PointerMove = (event) => {
+    if (!is360Mode || dragStartX.current === null || images.length < 2) {
+      return
+    }
+
+    const difference = event.clientX - dragStartX.current
+
+    if (Math.abs(difference) >= 15) {
+      const direction = difference < 0 ? 1 : -1
+
+      setActiveImage((current) => (current + direction + images.length) % images.length)
+      dragStartX.current = event.clientX
+      setImageZoomed(false)
+    }
+  }
+
+  const handle360PointerUp = () => {
+    dragStartX.current = null
+  }
+
   // Total Price
   const totalPrice =
     Number(product?.price || 0) +
@@ -373,24 +403,35 @@ const ProductDetails = () => {
 
         {/* Product Images */}
         <div className="reveal-on-scroll">
-          <div className="relative flex h-[350px] items-center justify-center overflow-hidden rounded-2xl bg-[#f8f8f6] sm:h-[480px]">
+          <div
+            className={`relative flex h-[350px] items-center justify-center overflow-hidden rounded-2xl bg-[#f8f8f6] sm:h-[480px] ${
+              is360Mode ? 'cursor-grab active:cursor-grabbing' : ''
+            }`}
+            onPointerDown={handle360PointerDown}
+            onPointerMove={handle360PointerMove}
+            onPointerUp={handle360PointerUp}
+            onPointerCancel={handle360PointerUp}
+            style={{ touchAction: is360Mode ? 'pan-y' : 'auto' }}
+          >
 
             {images.length > 0 ? (
               <img
                 key={`${activeImage}-${images[activeImage]}`}
                 src={images[activeImage] || images[0]}
                 alt={product.name}
-                onClick={() => setImageZoomed((current) => !current)}
+                onClick={() => {
+                  if (!is360Mode) setImageZoomed((current) => !current)
+                }}
                 className={`product-main-image h-full w-full rounded-2xl object-contain p-6 ${imageZoomed ? 'image-zoomed' : ''}`}
                 role="button"
                 tabIndex={0}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' || event.key === ' ') {
                     event.preventDefault()
-                    setImageZoomed((current) => !current)
+                    if (!is360Mode) setImageZoomed((current) => !current)
                   }
                 }}
-                aria-label={imageZoomed ? 'Zoom out product image' : 'Zoom in product image'}
+                aria-label={is360Mode ? 'Drag to rotate phone' : imageZoomed ? 'Zoom out product image' : 'Zoom in product image'}
               />
             ) : (
               <FiSmartphone size={100} className="text-gray-400" />
@@ -467,6 +508,45 @@ const ProductDetails = () => {
                 />
               </button>
             ))}
+          </div>
+
+          {/* 360 Degree Phone View */}
+          <div className="mt-5 flex flex-col items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIs360Mode((current) => !current)
+                setImageZoomed(false)
+                setActiveImage(0)
+                dragStartX.current = null
+              }}
+              disabled={images.length < 2}
+              className={`flex items-center gap-3 rounded-full border px-6 py-3 text-sm font-bold transition-all duration-300 ${
+                is360Mode
+                  ? 'border-black bg-black text-white shadow-lg'
+                  : 'border-gray-300 bg-white text-black hover:border-black hover:bg-[#f8f8f6]'
+              } disabled:cursor-not-allowed disabled:opacity-40`}
+            >
+              <span className="text-xl font-bold">360°</span>
+              {is360Mode ? 'Exit 360° View' : 'Explore 360° View'}
+            </button>
+
+            <p className="text-center text-xs text-gray-500">
+              {images.length < 2
+                ? 'Multiple product angle images required for 360° view.'
+                : is360Mode
+                  ? 'Drag left or right to rotate your phone'
+                  : 'Explore this smartphone from different angles'}
+            </p>
+
+            {is360Mode && (
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-green-500" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                  Interactive 360° Experience
+                </span>
+              </div>
+            )}
           </div>
         </div>        {/* Product Information */}
         <div className="reveal-on-scroll stagger-children">
