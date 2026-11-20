@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FiMessageCircle,
   FiSend,
+  FiUser,
   FiRefreshCw,
   FiWifi,
   FiWifiOff,
@@ -183,8 +184,13 @@ const ChatIntroAnimation = () => {
           background: #e9e7e2;
         }
 
-        .screen-line.short { width: 45%; }
-        .screen-line.long { width: 75%; }
+        .screen-line.short {
+          width: 45%;
+        }
+
+        .screen-line.long {
+          width: 75%;
+        }
 
         .screen-messages {
           display: flex;
@@ -251,54 +257,6 @@ const ChatIntroAnimation = () => {
           animation: loaderMove 2s ease-in-out infinite;
         }
 
-        /* Live Typing Indicator */
-
-        .admin-typing {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          width: fit-content;
-          padding: 12px 15px;
-          border: 1px solid #eeeae4;
-          border-radius: 16px;
-          border-bottom-left-radius: 4px;
-          background: white;
-          box-shadow: 0 3px 12px #17171708;
-        }
-
-        .admin-typing-text {
-          color: #77736d;
-          font-size: 11px;
-          font-weight: 600;
-        }
-
-        .admin-typing-dots {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .admin-typing-dots span {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-          background: #c58b22;
-          animation: adminTypingBounce .6s ease-in-out infinite alternate;
-        }
-
-        .admin-typing-dots span:nth-child(2) {
-          animation-delay: .2s;
-        }
-
-        .admin-typing-dots span:nth-child(3) {
-          animation-delay: .4s;
-        }
-
-        @keyframes adminTypingBounce {
-          from { transform: translateY(2px); opacity: .4; }
-          to { transform: translateY(-3px); opacity: 1; }
-        }
-
         @keyframes chatSceneIn {
           from { opacity: 0; transform: translateY(20px) scale(.96); }
           to { opacity: 1; transform: translateY(0) scale(1); }
@@ -352,8 +310,13 @@ const ChatIntroAnimation = () => {
             font-size: 20px;
           }
 
-          .bubble-one { right: -35px; }
-          .bubble-two { left: -35px; }
+          .bubble-one {
+            right: -35px;
+          }
+
+          .bubble-two {
+            left: -35px;
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -361,10 +324,6 @@ const ChatIntroAnimation = () => {
           .chat-intro-overlay {
             animation-duration: .01ms !important;
             animation-delay: 0ms !important;
-          }
-
-          .admin-typing-dots span {
-            animation: none;
           }
         }
       `}</style>
@@ -444,19 +403,6 @@ const ChatInbox = () => {
   const bottomRef = useRef(null)
   const typingTimerRef = useRef(null)
   const typingActiveRef = useRef(false)
-
-  // Current logged-in admin
-  let currentUser = null
-
-  try {
-    currentUser = JSON.parse(
-      localStorage.getItem('user') || 'null'
-    )
-  } catch {
-    currentUser = null
-  }
-
-  const currentUserId = currentUser?._id || currentUser?.id
 
   // Show intro animation every time page opens
   useEffect(() => {
@@ -566,7 +512,7 @@ const ChatInbox = () => {
 
       socket.on('joined_conversation', (data) => {
         if (
-          data?.conversationId === selectedRef.current?._id
+          data.conversationId === selectedRef.current?._id
         ) {
           joinedRef.current = true
         }
@@ -575,8 +521,8 @@ const ChatInbox = () => {
       // Customer online/offline status
       socket.on('participant_status', (data) => {
         if (
-          data?.conversationId !== selectedRef.current?._id ||
-          data?.role !== 'customer'
+          data.conversationId !== selectedRef.current?._id ||
+          data.role !== 'customer'
         ) {
           return
         }
@@ -584,41 +530,16 @@ const ChatInbox = () => {
         setCustomerOnline(Boolean(data.online))
       })
 
-      // Customer started typing
+      // Customer typing indicator
       socket.on('user_typing', (data) => {
         if (
-          data?.conversationId !== selectedRef.current?._id
+          data.conversationId !== selectedRef.current?._id ||
+          data.role !== 'customer'
         ) {
           return
         }
 
-        // Ignore our own typing event
-        if (
-          currentUserId &&
-          String(data.userId) === String(currentUserId)
-        ) {
-          return
-        }
-
-        setCustomerTyping(true)
-      })
-
-      // Customer stopped typing
-      socket.on('user_stop_typing', (data) => {
-        if (
-          data?.conversationId !== selectedRef.current?._id
-        ) {
-          return
-        }
-
-        if (
-          currentUserId &&
-          String(data.userId) === String(currentUserId)
-        ) {
-          return
-        }
-
-        setCustomerTyping(false)
+        setCustomerTyping(Boolean(data.isTyping))
       })
 
       // Receive real-time messages
@@ -683,7 +604,7 @@ const ChatInbox = () => {
       joinedRef.current = false
       setConnected(false)
     }
-  }, [currentUserId])
+  }, [])
 
   // Join selected conversation
   useEffect(() => {
@@ -716,14 +637,14 @@ const ChatInbox = () => {
       socketRef.current?.connected &&
       selectedRef.current?._id
     ) {
-      socketRef.current.emit('stop_typing', {
+      socketRef.current.emit('typing', {
         conversationId: selectedRef.current._id,
-        userId: currentUserId
+        isTyping: false
       })
     }
 
     typingActiveRef.current = false
-  }, [currentUserId])
+  }, [])
 
   // Admin typing event
   const handleTyping = (value) => {
@@ -743,7 +664,7 @@ const ChatInbox = () => {
 
         socketRef.current.emit('typing', {
           conversationId: selectedConversation._id,
-          userId: currentUserId
+          isTyping: true
         })
       }
 
@@ -753,13 +674,13 @@ const ChatInbox = () => {
 
       typingTimerRef.current = setTimeout(() => {
         stopTyping()
-      }, 1200)
+      }, 1500)
     } else {
       stopTyping()
     }
   }
 
-  // Cleanup typing timer
+  // Clear typing timer when component unmounts
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) {
@@ -841,8 +762,8 @@ const ChatInbox = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f6f3] p-3 font-[Arial,sans-serif] sm:p-6">
 
+    <div className="min-h-screen bg-[#f7f6f3] p-3 font-[Arial,sans-serif] sm:p-6">
       {showIntro && <ChatIntroAnimation />}
 
       {/* Page Header */}
@@ -851,11 +772,9 @@ const ChatInbox = () => {
           <p className="mb-1 text-xs font-semibold uppercase tracking-[3px] text-amber-700">
             Admin Dashboard
           </p>
-
           <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
             Customer Chats
           </h1>
-
           <p className="mt-1 text-sm text-gray-500">
             Manage customer conversations and provide support.
           </p>
@@ -867,17 +786,13 @@ const ChatInbox = () => {
           disabled={loading}
           className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-amber-400 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <FiRefreshCw
-            size={15}
-            className={loading ? 'animate-spin' : ''}
-          />
+          <span className={loading ? 'animate-spin' : ''}>⟳</span>
           Refresh
         </button>
       </div>
 
       {/* Statistics */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <p className="text-sm font-medium text-gray-500">
             Total Conversations
@@ -909,22 +824,21 @@ const ChatInbox = () => {
           <p className="text-sm font-medium text-gray-500">
             Socket Connection
           </p>
-
           <div className="mt-3 flex items-center gap-2">
-            {connected ? (
-              <FiWifi size={18} className="text-green-600" />
-            ) : (
-              <FiWifiOff size={18} className="text-red-500" />
-            )}
-
-            <span className={`text-lg font-bold ${
-              connected ? 'text-green-600' : 'text-red-500'
-            }`}>
+            <span
+              className={`h-2.5 w-2.5 rounded-full ${
+                connected ? 'bg-green-500' : 'bg-red-500'
+              }`}
+            />
+            <span
+              className={`text-lg font-bold ${
+                connected ? 'text-green-600' : 'text-red-500'
+              }`}
+            >
               {connected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
-
       </div>
 
       {/* Chat Layout */}
@@ -932,40 +846,31 @@ const ChatInbox = () => {
 
         {/* Conversation Sidebar */}
         <aside className="flex min-h-[350px] flex-col border-b border-gray-200 bg-white lg:border-b-0 lg:border-r">
-
           <div className="border-b border-gray-100 px-5 py-4">
             <div className="flex items-center justify-between">
               <h2 className="font-bold text-gray-900">
                 Conversations
               </h2>
-
               <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
                 {conversations.length}
               </span>
             </div>
-
             <p className="mt-1 text-xs text-gray-500">
               Select a customer to open chat
             </p>
           </div>
 
           <div className="flex-1 overflow-y-auto">
-
             {loading ? (
               <div className="flex h-48 items-center justify-center">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-amber-600" />
               </div>
             ) : conversations.length === 0 ? (
               <div className="px-5 py-16 text-center">
-                <FiMessageCircle
-                  size={38}
-                  className="mx-auto text-gray-300"
-                />
-
-                <p className="mt-3 font-semibold text-gray-700">
+                <div className="mb-3 text-4xl">💬</div>
+                <p className="font-semibold text-gray-700">
                   No conversations yet
                 </p>
-
                 <p className="mt-1 text-xs text-gray-500">
                   Customer messages will appear here.
                 </p>
@@ -989,7 +894,6 @@ const ChatInbox = () => {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-
                       <div className="flex min-w-0 items-center gap-3">
                         <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f1e7d5] text-sm font-bold text-amber-900">
                           {getCustomerName(conversation)
@@ -1001,28 +905,27 @@ const ChatInbox = () => {
                           <p className="truncate text-sm font-bold text-gray-900">
                             {getCustomerName(conversation)}
                           </p>
-
                           <p className="mt-1 truncate text-xs text-gray-500">
                             {conversation.customer?.email || 'Customer'}
                           </p>
                         </div>
                       </div>
 
-                      <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
-                        conversation.status === 'open'
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}>
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                          conversation.status === 'open'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-gray-100 text-gray-500'
+                        }`}
+                      >
                         {conversation.status || 'open'}
                       </span>
-
                     </div>
 
                     <div className="mt-3 flex items-center justify-between gap-3">
                       <p className="truncate text-xs text-gray-500">
                         {conversation.lastMessage || 'No messages yet'}
                       </p>
-
                       <span className="shrink-0 text-[10px] text-gray-400">
                         {conversation.lastMessageAt
                           ? formatTime(conversation.lastMessageAt)
@@ -1033,34 +936,27 @@ const ChatInbox = () => {
                 )
               })
             )}
-
           </div>
         </aside>
 
         {/* Chat Window */}
         <section className="flex min-h-[600px] min-w-0 flex-col bg-[#faf9f7]">
-
           {!selectedConversation ? (
             <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-
-              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#f1e7d5]">
-                <FiMessageCircle size={38} className="text-amber-800" />
+              <div className="mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-[#f1e7d5] text-4xl">
+                💬
               </div>
-
               <h2 className="text-xl font-bold text-gray-900">
                 Welcome to Customer Support
               </h2>
-
               <p className="mt-2 max-w-sm text-sm leading-6 text-gray-500">
                 Select a conversation from the sidebar to view messages and reply to your customer.
               </p>
-
             </div>
           ) : (
             <>
               {/* Chat Header */}
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 bg-white px-4 py-4 sm:px-6">
-
                 <div className="flex min-w-0 items-center gap-3">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f1e7d5] font-bold text-amber-900">
                     {getCustomerName(selectedConversation)
@@ -1072,7 +968,6 @@ const ChatInbox = () => {
                     <h2 className="truncate font-bold text-gray-900">
                       {getCustomerName(selectedConversation)}
                     </h2>
-
                     <p className="truncate text-xs text-gray-500">
                       {selectedConversation.customer?.email || 'Customer'}
                     </p>
@@ -1080,33 +975,35 @@ const ChatInbox = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-
                   <div className="flex items-center gap-2 rounded-full bg-gray-50 px-3 py-2">
-                    <span className={`h-2 w-2 rounded-full ${
-                      customerOnline ? 'bg-green-500' : 'bg-gray-400'
-                    }`} />
-
-                    <span className={`text-xs font-semibold ${
-                      customerOnline ? 'text-green-700' : 'text-gray-500'
-                    }`}>
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        customerOnline ? 'bg-green-500' : 'bg-gray-400'
+                      }`}
+                    />
+                    <span
+                      className={`text-xs font-semibold ${
+                        customerOnline ? 'text-green-700' : 'text-gray-500'
+                      }`}
+                    >
                       {customerOnline ? 'Online' : 'Offline'}
                     </span>
                   </div>
 
-                  <span className={`rounded-full px-3 py-2 text-xs font-bold uppercase ${
-                    selectedConversation.status === 'open'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}>
+                  <span
+                    className={`rounded-full px-3 py-2 text-xs font-bold uppercase ${
+                      selectedConversation.status === 'open'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
                     {selectedConversation.status || 'open'}
                   </span>
-
                 </div>
               </div>
 
               {/* Messages Area */}
               <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-
                 <div className="mb-5 text-center">
                   <span className="rounded-full bg-white px-4 py-2 text-[11px] font-medium text-gray-400 shadow-sm">
                     Conversation started{' '}
@@ -1140,24 +1037,27 @@ const ChatInbox = () => {
                             : 'justify-start'
                         }`}
                       >
-                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[70%] ${
-                          isAdminMessage
-                            ? 'rounded-br-sm bg-[#262626] text-white'
-                            : 'rounded-bl-sm border border-gray-100 bg-white text-gray-800'
-                        }`}>
+                        <div
+                          className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm sm:max-w-[70%] ${
+                            isAdminMessage
+                              ? 'rounded-br-sm bg-[#262626] text-white'
+                              : 'rounded-bl-sm border border-gray-100 bg-white text-gray-800'
+                          }`}
+                        >
                           <p className="whitespace-pre-wrap break-words text-sm leading-6">
                             {msg.message || msg.content}
                           </p>
 
-                          <div className={`mt-2 flex items-center justify-end gap-2 text-[10px] ${
-                            isAdminMessage
-                              ? 'text-gray-300'
-                              : 'text-gray-400'
-                          }`}>
+                          <div
+                            className={`mt-2 flex items-center justify-end gap-2 text-[10px] ${
+                              isAdminMessage
+                                ? 'text-gray-300'
+                                : 'text-gray-400'
+                            }`}
+                          >
                             <span>
                               {formatTime(msg.createdAt)}
                             </span>
-
                             {isAdminMessage && (
                               <span aria-label="Sent">✓</span>
                             )}
@@ -1171,24 +1071,20 @@ const ChatInbox = () => {
                 {/* Customer Typing Indicator */}
                 {customerTyping && (
                   <div className="flex justify-start">
-                    <div className="admin-typing">
-
-                      <div className="admin-typing-dots">
-                        <span />
-                        <span />
-                        <span />
-                      </div>
-
-                      <span className="admin-typing-text">
+                    <div className="rounded-2xl rounded-bl-sm border border-gray-100 bg-white px-4 py-3 shadow-sm">
+                      <p className="text-xs font-semibold text-gray-500">
                         Customer is typing...
-                      </span>
-
+                      </p>
+                      <div className="mt-2 flex gap-1">
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 [animation-delay:-.3s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500 [animation-delay:-.15s]" />
+                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-amber-500" />
+                      </div>
                     </div>
                   </div>
                 )}
 
                 <div ref={bottomRef} />
-
               </div>
 
               {/* Error Message */}
@@ -1200,7 +1096,6 @@ const ChatInbox = () => {
 
               {/* Message Input */}
               <div className="border-t border-gray-200 bg-white p-4 sm:p-5">
-
                 {selectedConversation.status !== 'open' ? (
                   <div className="rounded-xl bg-gray-100 px-4 py-4 text-center">
                     <p className="text-sm font-semibold text-gray-500">
@@ -1213,7 +1108,6 @@ const ChatInbox = () => {
                     className="flex items-end gap-3"
                   >
                     <div className="min-w-0 flex-1">
-
                       <textarea
                         value={message}
                         onChange={(e) => handleTyping(e.target.value)}
@@ -1231,16 +1125,14 @@ const ChatInbox = () => {
                         disabled={sending}
                         className="max-h-32 min-h-[52px] w-full resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 outline-none transition placeholder:text-gray-400 focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
                       />
-
                       <p className="mt-2 text-[10px] text-gray-400">
                         Press Enter to send · Shift + Enter for a new line
                       </p>
-
                     </div>
 
                     <button
                       type="submit"
-                      disabled={!message.trim() || sending || !connected}
+                      disabled={!message.trim() || sending}
                       className="flex h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl bg-[#262626] px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       {sending ? (
@@ -1251,14 +1143,12 @@ const ChatInbox = () => {
                       ) : (
                         <>
                           Send
-                          <FiSend size={16} />
+                          <span>➤</span>
                         </>
                       )}
                     </button>
-
                   </form>
                 )}
-
               </div>
             </>
           )}
