@@ -31,24 +31,17 @@ const httpServer = createServer((req, res) => {
   }))
 })
 
-const startServer = async () => {
-  try {
-    console.log('Connecting to MongoDB...')
+initializeSocket(httpServer)
 
-    await DBconfig()
+httpServer.listen(PORT, '0.0.0.0', () => {
+  console.log(`MobileSpot Socket.IO server running on port ${PORT}`)
+  console.log('Socket.IO is ready')
 
-    console.log('MongoDB connected successfully')
-
-    initializeSocket(httpServer)
-
-    httpServer.listen(PORT, '0.0.0.0', () => {
-      console.log(`MobileSpot Socket.IO server running on port ${PORT}`)
-      console.log('Socket.IO is ready')
+  DBconfig()
+    .then(() => {
+      console.log('MongoDB connected successfully')
     })
-  } catch (error) {
-    console.error('Server startup failed:', error.message)
-    process.exit(1)
-  }
-}
-
-startServer()
+    .catch((error) => {
+      console.error('MongoDB background connection failed:', error.message)
+    })
+})
