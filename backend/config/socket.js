@@ -15,7 +15,7 @@ const initializeSocket = (httpServer) => {
     }
   })
 
-  // Socket authentication
+  // Socket Authentication
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token
@@ -38,22 +38,19 @@ const initializeSocket = (httpServer) => {
     }
   })
 
-  // Check whether customer has another active socket in this room
+  // Check Customer Online Status
   const isCustomerOnline = async (conversationId) => {
-    const sockets = await io
-      .in(conversationId.toString())
-      .fetchSockets()
+    const sockets = await io.in(conversationId.toString()).fetchSockets()
 
     return sockets.some(
-      (connectedSocket) =>
-        !connectedSocket.user?.isAdmin
+      (connectedSocket) => !connectedSocket.user?.isAdmin
     )
   }
 
   io.on('connection', (socket) => {
     console.log('Authenticated user connected:', socket.user._id)
 
-    // Join conversation room
+    // Join Conversation
     socket.on('join_conversation', async (conversationId) => {
       try {
         if (!conversationId) {
@@ -80,13 +77,12 @@ const initializeSocket = (httpServer) => {
 
         const room = conversationId.toString()
 
-        socket.join(room)
+        await socket.join(room)
 
         socket.emit('joined_conversation', {
           conversationId: room
         })
 
-        // Send current customer online status to everyone in the room
         const customerOnline = await isCustomerOnline(room)
 
         io.to(room).emit('participant_status', {
@@ -100,26 +96,18 @@ const initializeSocket = (httpServer) => {
       }
     })
 
-    // Typing indicator
+    // Typing Indicator
     socket.on('typing', async (data) => {
       try {
         const { conversationId, isTyping } = data || {}
 
-        if (
-          !conversationId ||
-          typeof isTyping !== 'boolean'
-        ) {
-          return
-        }
+        if (!conversationId || typeof isTyping !== 'boolean') return
 
         const room = conversationId.toString()
 
-        // User must have joined this conversation
-        if (!socket.rooms.has(room)) {
-          return
-        }
+        if (!socket.rooms.has(room)) return
 
-        io.to(room).except(socket.id).emit('user_typing', {
+        socket.to(room).emit('user_typing', {
           conversationId: room,
           role: socket.user.isAdmin ? 'admin' : 'customer',
           isTyping
@@ -129,25 +117,34 @@ const initializeSocket = (httpServer) => {
       }
     })
 
-    // Send real-time message
-    socket.on('send_message', async (data) => {
+    // Send Message with Duplicate Protection
+    socket.on('send_message', async (data, acknowledge) => {
       try {
-        const { conversationId, message } = data || {}
+        const { conversationId, message, clientMessageId } = data || {}
 
         if (
           !conversationId ||
           typeof message !== 'string' ||
           !message.trim()
         ) {
-          socket.emit('chat_error', 'Valid message is required')
-          return
+          throw new Error('Valid message is required')
+        }
+
+        if (
+          clientMessageId !== undefined &&
+          (
+            typeof clientMessageId !== 'string' ||
+            !clientMessageId.trim() ||
+            clientMessageId.length > 100
+          )
+        ) {
+          throw new Error('Invalid message ID')
         }
 
         const conversation = await Conversation.findById(conversationId)
 
         if (!conversation || conversation.status !== 'open') {
-          socket.emit('chat_error', 'Conversation is unavailable')
-          return
+          throw new Error('Conversation is unavailable')
         }
 
         const isCustomer =
@@ -156,54 +153,114 @@ const initializeSocket = (httpServer) => {
         const isAdmin = socket.user.isAdmin
 
         if (!isCustomer && !isAdmin) {
-          socket.emit('chat_error', 'Access denied')
-          return
+          throw new Error('Access denied')
         }
 
         const room = conversationId.toString()
 
         if (!socket.rooms.has(room)) {
-          socket.emit('chat_error', 'Join the conversation first')
-          return
+          throw new Error('Join the conversation first')
         }
 
-        const newMessage = await Message.create({
-          conversation: conversationId,
-          sender: socket.user._id,
-          senderRole: isAdmin ? 'admin' : 'customer',
-          message: message.trim()
-        })
+        const cleanMessage = message.trim()
+        const cleanClientMessageId = clientMessageId?.trim()
 
-        conversation.lastMessage = message.trim()
-        conversation.lastMessageAt = new Date()
+        // Check whether this message was already saved
+        let savedMessage = null
+        let isNewMessage = false
 
-        if (isAdmin) {
-          conversation.admin = socket.user._id
+        if (cleanClientMessageId) {
+          savedMessage = await Message.findOne({
+            conversation: conversationId,
+            sender: socket.user._id,
+            clientMessageId: cleanClientMessageId
+          })
         }
 
-        await conversation.save()
+        // Save only if it does not already exist
+        if (!savedMessage) {
+          try {
+            savedMessage = await Message.create({
+              conversation: conversationId,
+              sender: socket.user._id,
+              senderRole: isAdmin ? 'admin' : 'customer',
+              message: cleanMessage,
+              ...(cleanClientMessageId
+                ? { clientMessageId: cleanClientMessageId }
+                : {})
+            })
 
-        const populatedMessage = await Message.findById(newMessage._id)
+            isNewMessage = true
+          } catch (error) {
+            // Handle simultaneous duplicate requests
+            if (error.code !== 11000 || !cleanClientMessageId) {
+              throw error
+            }
+
+            savedMessage = await Message.findOne({
+              conversation: conversationId,
+              sender: socket.user._id,
+              clientMessageId: cleanClientMessageId
+            })
+
+            if (!savedMessage) {
+              throw error
+            }
+          }
+        }
+
+        // Update conversation only for a newly saved message
+        if (isNewMessage) {
+          conversation.lastMessage = cleanMessage
+          conversation.lastMessageAt = new Date()
+
+          if (isAdmin) {
+            conversation.admin = socket.user._id
+          }
+
+          await conversation.save()
+        }
+
+        const populatedMessage = await Message.findById(savedMessage._id)
           .populate('sender', 'name email')
 
-        // Stop typing indicator after sending
+        // Stop typing indicator
         io.to(room).emit('user_typing', {
           conversationId: room,
           role: isAdmin ? 'admin' : 'customer',
           isTyping: false
         })
 
-        // Send message to all participants
-        io.to(room).emit('new_message', populatedMessage)
+        // Broadcast only newly saved messages
+        if (isNewMessage) {
+          io.to(room).emit('new_message', populatedMessage)
+        }
+
+        // Confirm successful message delivery to sender
+        if (typeof acknowledge === 'function') {
+          acknowledge({
+            ok: true,
+            message: populatedMessage
+          })
+        }
       } catch (error) {
         console.log('Socket message error:', error.message)
-        socket.emit('chat_error', 'Message could not be sent')
+
+        const errorResponse = {
+          ok: false,
+          message: error.message || 'Message could not be sent'
+        }
+
+        if (typeof acknowledge === 'function') {
+          acknowledge(errorResponse)
+        }
+
+        socket.emit('chat_error', errorResponse.message)
       }
     })
 
-    // Disconnect
+    // Stop Typing When Disconnecting
     socket.on('disconnecting', () => {
-      // Stop typing indicator in every joined conversation
       for (const room of socket.rooms) {
         if (room === socket.id) continue
 
@@ -215,28 +272,9 @@ const initializeSocket = (httpServer) => {
       }
     })
 
+    // Disconnect
     socket.on('disconnect', async () => {
       console.log('User disconnected:', socket.user._id)
-
-      try {
-        // Check rooms this socket was connected to.
-        // Socket.IO removes room membership after disconnect.
-        const joinedRooms = [...socket.rooms]
-
-        for (const room of joinedRooms) {
-          if (room === socket.id) continue
-
-          const customerOnline = await isCustomerOnline(room)
-
-          io.to(room).emit('participant_status', {
-            conversationId: room,
-            role: 'customer',
-            online: customerOnline
-          })
-        }
-      } catch (error) {
-        console.log('Presence update error:', error.message)
-      }
     })
   })
 

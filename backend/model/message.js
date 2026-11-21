@@ -27,6 +27,11 @@ const messageSchema = new mongoose.Schema(
       trim: true
     },
 
+    clientMessageId: {
+      type: String,
+      default: null
+    },
+
     isRead: {
       type: Boolean,
       default: false
@@ -34,6 +39,21 @@ const messageSchema = new mongoose.Schema(
   },
   {
     timestamps: true
+  }
+)
+
+// Prevent duplicate messages from the same sender
+messageSchema.index(
+  {
+    conversation: 1,
+    sender: 1,
+    clientMessageId: 1
+  },
+  {
+    unique: true,
+    partialFilterExpression: {
+      clientMessageId: { $type: 'string' }
+    }
   }
 )
 

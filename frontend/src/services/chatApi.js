@@ -5,13 +5,17 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   'https://mobilespot-backend.vercel.app/api/v1'
 
-// Separate Enzonic Socket.IO server
 const SOCKET_URL =
   import.meta.env.VITE_SOCKET_URL ||
   'https://mobilespot.enzonic.dev'
 
+// Shared Socket.IO connection
+let chatSocket = null
+let activeToken = null
+
 const getToken = () => localStorage.getItem('token')
 
+// REST API request
 const apiRequest = async (endpoint, options = {}) => {
   const token = getToken()
 
@@ -74,15 +78,58 @@ export const connectChatSocket = () => {
     throw new Error('Please login first.')
   }
 
-  const socket = io(SOCKET_URL, {
+  // Reuse existing connection if same user is logged in
+  if (chatSocket && activeToken === token) {
+    if (!chatSocket.connected && !chatSocket.active) {
+      chatSocket.connect()
+    }
+
+    return chatSocket
+  }
+
+  // Close old connection if token has changed
+  if (chatSocket) {
+    chatSocket.removeAllListeners()
+    chatSocket.disconnect()
+    chatSocket = null
+  }
+
+  activeToken = token
+
+  chatSocket = io(SOCKET_URL, {
     auth: {
       token
     },
-    autoConnect: true,
+
+    autoConnect: false,
+
     reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    randomizationFactor: 0.5,
+
+    timeout: 20000,
+
+    transports: ['websocket', 'polling'],
+
+    upgrade: true,
+
+    forceNew: false
   })
 
-  return socket
+  // Start connection immediately
+  chatSocket.connect()
+
+  return chatSocket
+}
+
+// Disconnect and clear shared connection on logout
+export const disconnectChatSocket = () => {
+  if (chatSocket) {
+    chatSocket.removeAllListeners()
+    chatSocket.disconnect()
+    chatSocket = null
+    activeToken = null
+  }
 }

@@ -301,9 +301,7 @@ const SupportIntroAnimation = () => {
       `}</style>
 
       <div className="support-intro-content">
-
         <div className="support-icon-scene">
-
           <div className="support-ring" />
           <div className="support-ring second" />
 
@@ -318,13 +316,10 @@ const SupportIntroAnimation = () => {
           <div className="support-small-icon right">
             <FiSend size={20} />
           </div>
-
         </div>
 
         <div className="support-chat-preview">
-
           <div className="support-preview-header">
-
             <div className="support-preview-avatar">
               <FiHeadphones size={20} />
             </div>
@@ -339,7 +334,6 @@ const SupportIntroAnimation = () => {
                 Here to help you
               </p>
             </div>
-
           </div>
 
           <div className="support-preview-messages">
@@ -347,7 +341,6 @@ const SupportIntroAnimation = () => {
             <div className="support-preview-message reply" />
             <div className="support-preview-message last" />
           </div>
-
         </div>
 
         <h2 className="support-intro-title">
@@ -361,7 +354,6 @@ const SupportIntroAnimation = () => {
         <div className="support-loader">
           <span />
         </div>
-
       </div>
     </div>
   )
@@ -379,6 +371,9 @@ const SupportChat = () => {
 
   const socketRef = useRef(null)
   const bottomRef = useRef(null)
+  const conversationRef = useRef(null)
+  const currentMessagesRef = useRef([])
+  const pendingMessageRef = useRef(null)
 
   let currentUser = null
 
@@ -390,10 +385,17 @@ const SupportChat = () => {
 
   const currentUserId = currentUser?._id || currentUser?.id
 
-  // Show animation every time page opens
+  // Keep latest conversation available to socket callbacks
   useEffect(() => {
-    setShowIntro(true)
+    conversationRef.current = conversation?._id || null
+  }, [conversation?._id])
 
+  useEffect(() => {
+    currentMessagesRef.current = messages
+  }, [messages])
+
+  // Intro animation
+  useEffect(() => {
     const timer = setTimeout(() => {
       setShowIntro(false)
     }, 4300)
@@ -401,7 +403,117 @@ const SupportChat = () => {
     return () => clearTimeout(timer)
   }, [])
 
-  // Load or create support conversation
+  // Start Socket.IO immediately
+  useEffect(() => {
+    let socket
+
+    const handleConnect = () => {
+      setConnected(true)
+      setError('')
+
+      const conversationId = conversationRef.current
+
+      if (conversationId) {
+        socket.emit('join_conversation', conversationId)
+      }
+    }
+
+    const handleDisconnect = () => {
+      setConnected(false)
+      setSending(false)
+    }
+
+    const handleJoined = () => {
+      setConnected(socket.connected)
+    }
+
+    const handleNewMessage = (newMessage) => {
+      const activeConversationId = conversationRef.current
+
+      const messageConversationId =
+        newMessage.conversation?._id || newMessage.conversation
+
+      if (
+        !activeConversationId ||
+        String(messageConversationId) !== String(activeConversationId)
+      ) {
+        return
+      }
+
+      setMessages(previous => {
+        const exists = previous.some(
+          item => String(item._id) === String(newMessage._id)
+        )
+
+        if (exists) return previous
+
+        const updated = [...previous, newMessage]
+        currentMessagesRef.current = updated
+
+        return updated
+      })
+
+      setSending(false)
+      pendingMessageRef.current = null
+    }
+
+    const handleChatError = (errorMessage) => {
+      setError(
+        typeof errorMessage === 'string'
+          ? errorMessage
+          : 'Unable to process chat request.'
+      )
+
+      setSending(false)
+    }
+
+    const handleConnectError = (err) => {
+      setConnected(false)
+      setError(err.message || 'Chat connection failed.')
+    }
+
+    try {
+      socket = connectChatSocket()
+      socketRef.current = socket
+
+      socket.on('connect', handleConnect)
+      socket.on('disconnect', handleDisconnect)
+      socket.on('joined_conversation', handleJoined)
+      socket.on('new_message', handleNewMessage)
+      socket.on('chat_error', handleChatError)
+      socket.on('connect_error', handleConnectError)
+
+      if (socket.connected) {
+        setConnected(true)
+
+        if (conversationRef.current) {
+          socket.emit('join_conversation', conversationRef.current)
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to connect to chat.')
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('connect', handleConnect)
+        socket.off('disconnect', handleDisconnect)
+        socket.off('joined_conversation', handleJoined)
+        socket.off('new_message', handleNewMessage)
+        socket.off('chat_error', handleChatError)
+        socket.off('connect_error', handleConnectError)
+        socket.disconnect()
+      }
+
+      if (socketRef.current === socket) {
+        socketRef.current = null
+      }
+
+      setConnected(false)
+    }
+  }, [])
+
+  // Load or create conversation
   useEffect(() => {
     let active = true
 
@@ -419,13 +531,38 @@ const SupportChat = () => {
 
         if (!active) return
 
+        conversationRef.current = chat._id
         setConversation(chat)
+
+        if (socketRef.current?.connected) {
+          socketRef.current.emit('join_conversation', chat._id)
+        }
 
         const messagesResponse = await getMessages(chat._id)
 
         if (!active) return
 
-        setMessages(messagesResponse.messages || [])
+        const fetchedMessages = messagesResponse.messages || []
+
+        setMessages(previous => {
+          const combined = [...fetchedMessages]
+
+          previous.forEach(item => {
+            const exists = combined.some(
+              existing => String(existing._id) === String(item._id)
+            )
+
+            if (!exists) combined.push(item)
+          })
+
+          combined.sort((a, b) => {
+            return new Date(a.createdAt) - new Date(b.createdAt)
+          })
+
+          currentMessagesRef.current = combined
+
+          return combined
+        })
       } catch (err) {
         if (active) {
           setError(err.message || 'Unable to load support chat.')
@@ -442,75 +579,6 @@ const SupportChat = () => {
     }
   }, [])
 
-  // Socket connection
-  useEffect(() => {
-    if (!conversation?._id) return
-
-    let socket
-
-    try {
-      socket = connectChatSocket()
-      socketRef.current = socket
-
-      socket.on('connect', () => {
-        setConnected(true)
-        socket.emit('join_conversation', conversation._id)
-      })
-
-      socket.on('disconnect', () => {
-        setConnected(false)
-      })
-
-      socket.on('joined_conversation', () => {
-        setConnected(true)
-      })
-
-      socket.on('new_message', (newMessage) => {
-        if (
-          newMessage.conversation !== conversation._id &&
-          newMessage.conversation?._id !== conversation._id
-        ) {
-          return
-        }
-
-        setMessages((previous) => {
-          const alreadyExists = previous.some(
-            (item) => item._id === newMessage._id
-          )
-
-          if (alreadyExists) return previous
-
-          return [...previous, newMessage]
-        })
-
-        setSending(false)
-      })
-
-      socket.on('chat_error', (errorMessage) => {
-        setError(
-          typeof errorMessage === 'string'
-            ? errorMessage
-            : 'Unable to send message.'
-        )
-
-        setSending(false)
-      })
-
-      socket.on('connect_error', (err) => {
-        setConnected(false)
-        setError(err.message || 'Chat connection failed.')
-      })
-    } catch (err) {
-      setError(err.message || 'Unable to connect to chat.')
-    }
-
-    return () => {
-      socket?.disconnect()
-      socketRef.current = null
-      setConnected(false)
-    }
-  }, [conversation?._id])
-
   // Auto scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -518,7 +586,16 @@ const SupportChat = () => {
     })
   }, [messages])
 
-  // Send message
+  // Generate a unique ID for each new message
+  const createClientMessageId = () => {
+    if (globalThis.crypto?.randomUUID) {
+      return globalThis.crypto.randomUUID()
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  }
+
+  // Send message with backend acknowledgement
   const handleSend = (e) => {
     e.preventDefault()
 
@@ -526,20 +603,74 @@ const SupportChat = () => {
 
     if (!trimmedMessage || !conversation?._id || sending) return
 
-    if (!socketRef.current?.connected) {
-      setError('Chat is not connected. Please try again.')
+    const socket = socketRef.current
+
+    if (!socket?.connected) {
+      setError('Chat is reconnecting. Please wait a moment.')
       return
+    }
+
+    // Reuse the same ID when retrying the same message
+    let pendingMessage = pendingMessageRef.current
+
+    if (
+      !pendingMessage ||
+      pendingMessage.message !== trimmedMessage ||
+      pendingMessage.conversationId !== conversation._id
+    ) {
+      pendingMessage = {
+        conversationId: conversation._id,
+        message: trimmedMessage,
+        clientMessageId: createClientMessageId()
+      }
+
+      pendingMessageRef.current = pendingMessage
     }
 
     setError('')
     setSending(true)
 
-    socketRef.current.emit('send_message', {
-      conversationId: conversation._id,
-      message: trimmedMessage
-    })
+    socket.timeout(15000).emit(
+      'send_message',
+      pendingMessage,
+      (timeoutError, response) => {
+        if (timeoutError) {
+          setError(
+            'Confirmation nahi mili. Internet check karke same message dobara send karein.'
+          )
+          setSending(false)
+          return
+        }
 
-    setMessage('')
+        if (!response?.ok) {
+          setError(response?.message || 'Message could not be sent.')
+          setSending(false)
+          return
+        }
+
+        const savedMessage = response.message
+
+        if (savedMessage?._id) {
+          setMessages(previous => {
+            const exists = previous.some(
+              item => String(item._id) === String(savedMessage._id)
+            )
+
+            if (exists) return previous
+
+            const updated = [...previous, savedMessage]
+            currentMessagesRef.current = updated
+
+            return updated
+          })
+        }
+
+        pendingMessageRef.current = null
+        setMessage('')
+        setSending(false)
+        setError('')
+      }
+    )
   }
 
   const formatTime = (date) => {
@@ -558,7 +689,6 @@ const SupportChat = () => {
 
       <div className="mx-auto max-w-5xl">
 
-        {/* Back Button */}
         <Link
           to="/"
           className="mb-6 inline-flex items-center gap-2 text-sm font-semibold text-gray-600 transition hover:text-amber-700"
@@ -573,7 +703,6 @@ const SupportChat = () => {
           <div className="flex items-center justify-between gap-3 bg-[#171717] px-5 py-5 text-white sm:px-7">
 
             <div className="flex items-center gap-3">
-
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500 text-black">
                 <FiHeadphones size={25} />
               </div>
@@ -590,7 +719,6 @@ const SupportChat = () => {
             </div>
 
             <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-2">
-
               {connected ? (
                 <FiWifi className="text-green-400" size={15} />
               ) : (
@@ -598,7 +726,11 @@ const SupportChat = () => {
               )}
 
               <span className="text-xs font-medium">
-                {connected ? 'Connected' : 'Connecting'}
+                {connected
+                  ? 'Connected'
+                  : socketRef.current?.active
+                    ? 'Reconnecting'
+                    : 'Connecting'}
               </span>
             </div>
 
@@ -647,8 +779,7 @@ const SupportChat = () => {
                 </div>
 
                 <div className="space-y-5">
-
-                  {messages.map((item) => {
+                  {messages.map(item => {
                     const senderId =
                       item.sender?._id || item.sender
 
@@ -660,13 +791,13 @@ const SupportChat = () => {
                         key={item._id}
                         className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
                       >
-
-                        <div className={`max-w-[85%] sm:max-w-[70%] ${
-                          isMine
-                            ? 'rounded-2xl rounded-br-sm bg-[#171717] text-white'
-                            : 'rounded-2xl rounded-bl-sm border border-gray-100 bg-white text-gray-800 shadow-sm'
-                        } px-4 py-3`}>
-
+                        <div
+                          className={`max-w-[85%] px-4 py-3 sm:max-w-[70%] ${
+                            isMine
+                              ? 'rounded-2xl rounded-br-sm bg-[#171717] text-white'
+                              : 'rounded-2xl rounded-bl-sm border border-gray-100 bg-white text-gray-800 shadow-sm'
+                          }`}
+                        >
                           {!isMine && (
                             <p className="mb-1 text-[11px] font-bold text-amber-700">
                               Support Team
@@ -680,7 +811,6 @@ const SupportChat = () => {
                           <p className="mt-2 text-right text-[10px] text-gray-400">
                             {formatTime(item.createdAt)}
                           </p>
-
                         </div>
                       </div>
                     )
@@ -718,11 +848,19 @@ const SupportChat = () => {
             onSubmit={handleSend}
             className="flex items-center gap-3 border-t border-gray-100 bg-white p-4 sm:p-5"
           >
-
             <input
               type="text"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={e => {
+                setMessage(e.target.value)
+
+                if (
+                  pendingMessageRef.current &&
+                  pendingMessageRef.current.message !== e.target.value.trim()
+                ) {
+                  pendingMessageRef.current = null
+                }
+              }}
               placeholder="Type your message..."
               disabled={!conversation || sending}
               className="h-12 min-w-0 flex-1 rounded-xl border border-gray-200 bg-gray-50 px-4 text-sm outline-none transition focus:border-amber-500 focus:bg-white disabled:opacity-50"
@@ -736,7 +874,6 @@ const SupportChat = () => {
             >
               <FiSend size={19} />
             </button>
-
           </form>
 
           <div className="border-t border-gray-100 px-5 py-3 text-center text-[11px] text-gray-400">
